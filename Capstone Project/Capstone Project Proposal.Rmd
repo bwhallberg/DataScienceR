@@ -1,0 +1,58 @@
+---
+title: "Capstone Project Proposal"
+author: "Brian Hallberg"
+date: "5/9/2018"
+output: html_document
+---
+
+## Proposal
+From the 3 ideas that I proposed, this one to determine if there is a threshold of All-Star Game appearances that can predict with 95% confidence that a player would make the Hall of Fame was selected with input from my mentor, Thomas Hopper.
+
+I think that both teams and players would like to know this information as both are motivated to have representation in the Hall.  This is a sign of accomplishmnet and honor in the sport.  Teams and individuals may be able to find ways to advertise a player as an All-Star during their career.
+
+I have found a data set called the History of Baseball that contains a lot of data from professional baseball cover the period of 1871 to 2015.  This includes All-Star Game and Hall of Fame selections.  Additionally, there is yearly statistics on players.  These three sets of data will provide the information needed.  There are additional data on teams and franchises that are avaialble, but not used in this project.  The data is available on the Kraggle web side and can be obtained at this link: 
+* https://www.kaggle.com/seanlahman/the-history-of-baseball
+
+Approach to solving the problem
+
+1. Load the 3 data files needed and transform them as necesssary into **tidy data** ordered by player
+2. Provide some summary data from the data sets (total players, Total Players eligible, ...)
+3. Remove players that are still active in 2010 and later (see eligibilty rules below)
+4. Add to data sets for total years played, total years on all-star team
+5. Plot date sets of players and number of years played
+6. Probablilities of making Hall of Fame based on years in All-Star Game
+7. Generate final reports
+
+The project will be published on github and will include this file of the proposal, the data sets used, all codes used to perform the steps above, plats and tables generated and a presentation of the results.  R Markdown will be used to provided the documents and codes as well as generation of the presentation.
+
+<!--
+* What is the problem you want to solve?
+
+* Who is your client and why do they care about this problem? In other words, what will your client DO or DECIDE based on your analysis that they wouldn’t have otherwise?
+
+* What data are you going to use for this? How will you acquire this data?
+
+* In brief, outline your approach to solving this problem (knowing that this might change later).
+
+* What are your deliverables? Typically, this would include code, along with a paper and/or a slide deck.
+-->
+
+##Rules for Eligibility for Basebase Hall of Fame
+
+The rules for eligibility for the Baseball Hall of Fame have changed since the inital selection of Ty Cobb, Babe Ruth, Honus Wagner, Christy Matthews and Walter Johnson selected in 1936.  The last rule change was approved in 1954.  The current set of rules are listed here:
+* Player must be retired for 5 years
+* Player must have at least 10 years of major league experience
+* Player must be elected within 10 years of his retirement
+
+There is a Verterans Committee that can elect members to the Hall of Fame that do not currently meet the above requirements.
+
+<!--
+##Submission Instructions:
+
+* Write a project proposal - a short (1-2 page) document written in R Markdown covering the questions above. 
+* Create a github repository for your Capstone Project.
+* Add this proposal to the github repository for your project. 
+* Submit a link to this repository.
+* Once your mentor has approved your proposal, please share the github repository URL on the community and ask for feedback.
+
+-->
