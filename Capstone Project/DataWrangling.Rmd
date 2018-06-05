@@ -1,7 +1,7 @@
 ---
 title: "Data Wrangling"
 author: "Brian Hallberg"
-date: "5/10/2018"
+date: "6/4/2018"
 output: html_document
 ---
 
@@ -11,60 +11,101 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Initial data loads
 
-Load the data into a data frame and include all the libraries
+Load the data into a data frame and include all the libraries.  The data files are all in CSV format.  The files included are listed below:
+
+* **player.csv** - data with all the players, including name key for all other files, full name, year start and end were the critical fields for me.
+* **all_star.csv** - data with all-star information, includes players per year that played.
+* **hall_of_fame.csv** - data per year with players names and whether they were inducted int the hall of fame.
+* **batting.csv** - data with statistics per year for each player and team with information such as at bats, hits, doubles, triples, home runs, RBIs, games played, runs scored, stolen bases, caught stealing, were the most useful.
+* **pitching.csv** - data with statistics per year for each player and his teams with information such as wins, losses, games, outs pitched (innings pitched * 3), saves, hits give up, home runs allowed, complete games, shutouts, earned runs, walks, strikeouts were the most useful.
 
 ```{r load,  include=FALSE}
 library(readr)
 library(tidyr)
 library(dplyr)
-player_original <- read_csv("Capstone Project/player.csv")
-all_star_original <- read_csv("Capstone Project/all_star.csv")
-hof_original <- read_csv("Capstone Project/hall_of_fame.csv")
-batting <- read_csv("Capstone Project/batting.csv")
-pitching <- read_csv("Capstone Project/pitching.csv")
+player_original <- read_csv("player.csv")
+all_star_original <- read_csv("all_star.csv")
+hof_original <- read_csv("hall_of_fame.csv")
+batting <- read_csv("batting.csv")
+pitching <- read_csv("pitching.csv")
 player <- tbl_df(player_original)
 all_star <- tbl_df(all_star_original)
 hof <- tbl_df(hof_original)
 hit <- tbl_df(batting)
 pitch <- tbl_df(pitching)
 ```
+## Wrangle the data
 
-## Create some Summary Data sets that will be used to generate the final working data set
+### Create some Summary Data sets
 
-As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes #18,846# names.
 
-There are #1741# players that were selected to at least 1 All-star games.
-
-There are #247# players in the Baseball Hall of Fame in Cooperstown New York.  So #14.2%# of the All-stars and just #1.3%# of all players that have played baseball in over 100 years have become Hall of Famers.
 
 
 We'll create a summary of the all-star data that is based on the player and how many years they played in the all-star game.  The existing files are by player and year.  I want to know how many years the player made an All-Star game but I don't care which year.
 
-```{r}
+```{r all_star}
 sumallstar <- all_star %>%
   select(player_id, league_id, year) %>%
   group_by(player_id) %>%
-  count(player_id) %>%
-  rename(n=Allstar)
+  count(player_id)
 ```
 
 Next a list of all the players that have made the Hall of Fame.  The first elections were in 1936 and the last in this data set are were elected in 2016.  The original data file includes players as well as managers, umpires, and executives.  I only care about players.  It also lists all the years when they voted on them for inclusion, but I only care about those that were elected to the hall.
 
-```{r}
+```{r hof}
 sumhof <- hof %>%
   filter(category =="Player") %>%
   select(player_id, inducted) %>%
   filter(inducted == "Y")
 ```
 
+The batting and pitching data file is unique for the combination of player_id/year/team since a player can play more than one year and within a year they may have played for multiple teams.  I only care about the players career totals.  So we group by player_id and add all the other columns which are numberic.  I don't care about year or stint (which is just a index to the teams they played for in the year) so I drop them.  We'll use these to do a join on this data and the player data to make one big dataset.
+
+For hitting I add batting average (ba) which is hits (h) divided by at bats (ab).
+
+```{r summarize}
+sumhit <- hit %>%
+  group_by(player_id) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %>%
+  mutate(ba = h/ab) %>%
+  select(-year, -stint)
+sumpitch <- pitch %>%
+  group_by(player_id) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %>%
+  select(-year, -stint, -baopp, -era)
+```
+### Now we build the final data set.
+
+Include hall of fame data, all star data as well as  pitching and hitting data for all players.  This gets all the needed data in one place.
+
+```{r final}
+fullplay <- full_join(player, sumhof, by = "player_id")
+fullplay <- full_join(fullplay, sumallstar, by = "player_id")
+fullplay <- full_join(fullplay, sumhit, by = "player_id")
+fullplay <- full_join(fullplay, sumpitch, by = "player_id")
+```
+### Reduce to Hall of Fame Eligible Players
+
 In this section, I'm reducing the data set of players to those eligible for induction into the hall of fame. The rules say that the player must have played major league baseball for 10 years and they must be out of the game for 5 years.  So we'll reduce the set of players to those that meet those requirements.  There have been exceptions made in the past, but I think that is beyond the scope of this report.
 
-```{r}
-fullplay <- player %>%
+```{r eligible}
+eligible <- fullplay %>%
   mutate(timein = floor(difftime(final_game, debut, units="days")/365)) %>% 
-  mutate(Allstar = 0) %>%
-  mutate(inducted = "N") %>%
   filter(timein > 10) %>%
   filter(final_game <= "2011-01-01")
 ```
+##  Summarize some of what we know now
+
+As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes **18,846** names.
+
+There are **1741** players that were selected to at least 1 All-star games.
+
+There are **247** players in the Baseball Hall of Fame in Cooperstown New York.  So **14.2%** of the All-stars and just **1.3%** of all players that have played baseball in over 100 years have become Hall of Famers.
+
+Looking at eligible players of the **18,846** there are **2385** eligible for the hall of fame which means that only **12.7%** of players even have a chance to be inducted.
+
+## Some Notes on missing data
+
+Of the 247 hall of fame players, 26 have data missing about either the debut or final game or both.  We have dropped those from the final data set since there is not enough data about them.  There are an additional 10 players dropped becuase they did not meet the calculated minimum play time and were elected for other reasons that are beyond the scope of this report.
+
 

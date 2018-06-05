@@ -120,39 +120,67 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">Data Wrangling</h1>
 <h4 class="author"><em>Brian Hallberg</em></h4>
-<h4 class="date"><em>5/10/2018</em></h4>
+<h4 class="date"><em>6/4/2018</em></h4>
 
 </div>
 
 
 <div id="initial-data-loads" class="section level2">
 <h2>Initial data loads</h2>
-<p>Load the data into a data frame and include all the libraries</p>
+<p>Load the data into a data frame and include all the libraries. The data files are all in CSV format. The files included are listed below:</p>
+<ul>
+<li><strong>player.csv</strong> - data with all the players, including name key for all other files, full name, year start and end were the critical fields for me.</li>
+<li><strong>all_star.csv</strong> - data with all-star information, includes players per year that played.</li>
+<li><strong>hall_of_fame.csv</strong> - data per year with players names and whether they were inducted int the hall of fame.</li>
+<li><strong>batting.csv</strong> - data with statistics per year for each player and team with information such as at bats, hits, doubles, triples, home runs, RBIs, games played, runs scored, stolen bases, caught stealing, were the most useful.</li>
+<li><strong>pitching.csv</strong> - data with statistics per year for each player and his teams with information such as wins, losses, games, outs pitched (innings pitched * 3), saves, hits give up, home runs allowed, complete games, shutouts, earned runs, walks, strikeouts were the most useful.</li>
+</ul>
 </div>
-<div id="create-some-summary-data-sets-that-will-be-used-to-generate-the-final-working-data-set" class="section level2">
-<h2>Create some Summary Data sets that will be used to generate the final working data set</h2>
-<p>As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes #18,846# names.</p>
-<p>There are #1741# players that were selected to at least 1 All-star games.</p>
-<p>There are #247# players in the Baseball Hall of Fame in Cooperstown New York. So #14.2%# of the All-stars and just #1.3%# of all players that have played baseball in over 100 years have become Hall of Famers.</p>
-<p>We’ll create a summary of the all-star data that is based on the player and how many years they played in the all-star game. A historgram of the players and the number of times they appeared is generated to give a since of the number of players.</p>
+<div id="wrangle-the-data" class="section level2">
+<h2>Wrangle the data</h2>
+<div id="create-some-summary-data-sets-that-will-be-used-to-generate-the-final-working-data-set" class="section level3">
+<h3>Create some Summary Data sets that will be used to generate the final working data set</h3>
+<p>As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes <strong>18,846</strong> names.</p>
+<p>There are <strong>1741</strong> players that were selected to at least 1 All-star games.</p>
+<p>There are <strong>247</strong> players in the Baseball Hall of Fame in Cooperstown New York. So <strong>14.2%</strong> of the All-stars and just <strong>1.3%</strong> of all players that have played baseball in over 100 years have become Hall of Famers.</p>
+<p>We’ll create a summary of the all-star data that is based on the player and how many years they played in the all-star game. The existing files are by player and year. I want to know how many years the player made an All-Star game but I don’t care which year.</p>
 <pre class="r"><code>sumallstar &lt;- all_star %&gt;%
   select(player_id, league_id, year) %&gt;%
   group_by(player_id) %&gt;%
   count(player_id)</code></pre>
-<p>Next a list of all the players that have made the Hall of Fame. The first elections were in 1936 and the last in this data set are were elected in 2016.</p>
-<pre class="r"><code>hof %&gt;%
-  select(player_id, inducted, yearid, category) %&gt;%
-  group_by(category) %&gt;%
-  filter(inducted == &quot;Y&quot;) %&gt;%
-  count(category)</code></pre>
-<pre><code>## # A tibble: 4 x 2
-## # Groups:   category [4]
-##   category              n
-##   &lt;chr&gt;             &lt;int&gt;
-## 1 Manager              23
-## 2 Pioneer/Executive    32
-## 3 Player              247
-## 4 Umpire               10</code></pre>
+<p>Next a list of all the players that have made the Hall of Fame. The first elections were in 1936 and the last in this data set are were elected in 2016. The original data file includes players as well as managers, umpires, and executives. I only care about players. It also lists all the years when they voted on them for inclusion, but I only care about those that were elected to the hall.</p>
+<pre class="r"><code>sumhof &lt;- hof %&gt;%
+  filter(category ==&quot;Player&quot;) %&gt;%
+  select(player_id, inducted) %&gt;%
+  filter(inducted == &quot;Y&quot;)</code></pre>
+<p>The batting and pitching data file is unique for the combination of player_id/year/team since a player can play more than one year and within a year they may have played for multiple teams. I only care about the players career totals. So we group by player_id and add all the other columns which are numberic. I don’t care about year or stint (which is just a index to the teams they played for in the year) so I drop them. We’ll use these to do a join on this data and the player data to make one big dataset.</p>
+<p>For hitting I add batting average (ba) which is hits (h) divided by at bats (ab).</p>
+<pre class="r"><code>sumhit &lt;- hit %&gt;%
+  group_by(player_id) %&gt;%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %&gt;%
+  mutate(ba = h/ab) %&gt;%
+  select(-year, -stint)
+sumpitch &lt;- pitch %&gt;%
+  group_by(player_id) %&gt;%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %&gt;%
+  select(-year, -stint, -baopp, -era)</code></pre>
+</div>
+<div id="now-we-build-the-final-data-set." class="section level3">
+<h3>Now we build the final data set.</h3>
+<p>Include hall of fame data, all star data as well as pitching and hitting data for all players. This gets all the needed data in one place.</p>
+<pre class="r"><code>fullplay &lt;- full_join(player, sumhof, by = &quot;player_id&quot;)
+fullplay &lt;- full_join(fullplay, sumallstar, by = &quot;player_id&quot;)
+fullplay &lt;- full_join(fullplay, sumhit, by = &quot;player_id&quot;)
+fullplay &lt;- full_join(fullplay, sumpitch, by = &quot;player_id&quot;)</code></pre>
+</div>
+<div id="reduce-to-hall-of-fame-eligible-players" class="section level3">
+<h3>Reduce to Hall of Fame Eligible Players</h3>
+<p>In this section, I’m reducing the data set of players to those eligible for induction into the hall of fame. The rules say that the player must have played major league baseball for 10 years and they must be out of the game for 5 years. So we’ll reduce the set of players to those that meet those requirements. There have been exceptions made in the past, but I think that is beyond the scope of this report.</p>
+<pre class="r"><code>eligible &lt;- fullplay %&gt;%
+  mutate(timein = floor(difftime(final_game, debut, units=&quot;days&quot;)/365)) %&gt;% 
+  filter(timein &gt; 10) %&gt;%
+  filter(final_game &lt;= &quot;2011-01-01&quot;)</code></pre>
+</div>
 </div>
 
 

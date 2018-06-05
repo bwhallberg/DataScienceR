@@ -41,3 +41,26 @@ fullplay <- player %>%
 
 tmp <- full_join(player, sumhof, by = "player_id")
 tmp1 <- full_join(tmp, sumallstar, by = "player_id")
+
+sumhit <- hit %>%
+  group_by(player_id) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %>%
+  mutate(ba = h/ab) %>%
+  select(-year, -stint)
+
+sumhitf <- hit %>%
+  group_by(player_id) %>%
+  summarise_if(is.numeric, sum, na.rm = FALSE) %>%
+  mutate(ba = h/ab) %>%
+  select(-year, -stint)
+
+sumpitch <- pitch %>%
+  group_by(player_id) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE) %>%
+  select(-year, -stint, -baopp, -era)
+
+tmp <- player
+
+sumf <- fullplay %>% filter(inducted == 'Y') %>% select (player_id, inducted, debut, final_game, ab, w, n)
+sume <- eligible %>% filter(inducted == 'Y') %>% select (player_id, inducted, debut, final_game, ab, w, n)
+rmiss <- setdiff(sumf, sume)
