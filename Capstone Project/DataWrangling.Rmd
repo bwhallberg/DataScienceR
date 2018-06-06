@@ -84,6 +84,16 @@ fullplay <- full_join(fullplay, sumallstar, by = "player_id")
 fullplay <- full_join(fullplay, sumhit, by = "player_id")
 fullplay <- full_join(fullplay, sumpitch, by = "player_id")
 ```
+###  Cleanup column names
+
+Once pitching and hitting were added there are some similar fields, so we'll clean them up here.
+
+```{r cleancol}
+fullplay <- rename(fullplay, allstar = n, rallow = r.y, hrallow = hr.y, bballow = bb.y, hallow = h.y)
+fullplay <- rename(fullplay, gpitch = g.y, sopitch = so.y, batterhit = hbp.y)
+fullplay <- rename(fullplay, game = g.x, run = r.x, hit = h.x, hr = hr.x, bb = bb.x, so = so.x, hbp = hbp.x)
+```
+
 ### Reduce to Hall of Fame Eligible Players
 
 In this section, I'm reducing the data set of players to those eligible for induction into the hall of fame. The rules say that the player must have played major league baseball for 10 years and they must be out of the game for 5 years.  So we'll reduce the set of players to those that meet those requirements.  There have been exceptions made in the past, but I think that is beyond the scope of this report.
@@ -93,6 +103,13 @@ eligible <- fullplay %>%
   mutate(timein = floor(difftime(final_game, debut, units="days")/365)) %>% 
   filter(timein > 10) %>%
   filter(final_game <= "2011-01-01")
+```
+## Write out the Data Sets to files
+
+Save a few of the temporary files for later plotting and analysis.  Saved as CSV files
+
+```{r Writedata}
+write_csv(eligible, "eligible.csv")
 ```
 ##  Summarize some of what we know now
 
@@ -107,5 +124,3 @@ Looking at eligible players of the **18,846** there are **2385** eligible for th
 ## Some Notes on missing data
 
 Of the 247 hall of fame players, 26 have data missing about either the debut or final game or both.  We have dropped those from the final data set since there is not enough data about them.  There are an additional 10 players dropped becuase they did not meet the calculated minimum play time and were elected for other reasons that are beyond the scope of this report.
-
-

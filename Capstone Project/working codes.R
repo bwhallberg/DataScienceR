@@ -64,3 +64,16 @@ tmp <- player
 sumf <- fullplay %>% filter(inducted == 'Y') %>% select (player_id, inducted, debut, final_game, ab, w, n)
 sume <- eligible %>% filter(inducted == 'Y') %>% select (player_id, inducted, debut, final_game, ab, w, n)
 rmiss <- setdiff(sumf, sume)
+
+#
+#  Clean up the environment
+#
+rm(all_star)
+rm(all_star_original)
+
+hof <- eligible %>%
+  filter(inducted == 'Y') %>%
+  select(player_id, inducted, allstar, timein)
+
+ggplot(hof, aes(x=player_id, y=allstar)) +
+  geom_point()

@@ -138,11 +138,8 @@ $(document).ready(function () {
 </div>
 <div id="wrangle-the-data" class="section level2">
 <h2>Wrangle the data</h2>
-<div id="create-some-summary-data-sets-that-will-be-used-to-generate-the-final-working-data-set" class="section level3">
-<h3>Create some Summary Data sets that will be used to generate the final working data set</h3>
-<p>As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes <strong>18,846</strong> names.</p>
-<p>There are <strong>1741</strong> players that were selected to at least 1 All-star games.</p>
-<p>There are <strong>247</strong> players in the Baseball Hall of Fame in Cooperstown New York. So <strong>14.2%</strong> of the All-stars and just <strong>1.3%</strong> of all players that have played baseball in over 100 years have become Hall of Famers.</p>
+<div id="create-some-summary-data-sets" class="section level3">
+<h3>Create some Summary Data sets</h3>
 <p>We’ll create a summary of the all-star data that is based on the player and how many years they played in the all-star game. The existing files are by player and year. I want to know how many years the player made an All-Star game but I don’t care which year.</p>
 <pre class="r"><code>sumallstar &lt;- all_star %&gt;%
   select(player_id, league_id, year) %&gt;%
@@ -173,6 +170,13 @@ fullplay &lt;- full_join(fullplay, sumallstar, by = &quot;player_id&quot;)
 fullplay &lt;- full_join(fullplay, sumhit, by = &quot;player_id&quot;)
 fullplay &lt;- full_join(fullplay, sumpitch, by = &quot;player_id&quot;)</code></pre>
 </div>
+<div id="cleanup-column-names" class="section level3">
+<h3>Cleanup column names</h3>
+<p>Once pitching and hitting were added there are some similar fields, so we’ll clean them up here.</p>
+<pre class="r"><code>fullplay &lt;- rename(fullplay, allstar = n, rallow = r.y, hrallow = hr.y, bballow = bb.y, hallow = h.y)
+fullplay &lt;- rename(fullplay, gpitch = g.y, sopitch = so.y, batterhit = hbp.y)
+fullplay &lt;- rename(fullplay, game = g.x, run = r.x, hit = h.x, hr = hr.x, bb = bb.x, so = so.x, hbp = hbp.x)</code></pre>
+</div>
 <div id="reduce-to-hall-of-fame-eligible-players" class="section level3">
 <h3>Reduce to Hall of Fame Eligible Players</h3>
 <p>In this section, I’m reducing the data set of players to those eligible for induction into the hall of fame. The rules say that the player must have played major league baseball for 10 years and they must be out of the game for 5 years. So we’ll reduce the set of players to those that meet those requirements. There have been exceptions made in the past, but I think that is beyond the scope of this report.</p>
@@ -181,6 +185,22 @@ fullplay &lt;- full_join(fullplay, sumpitch, by = &quot;player_id&quot;)</code><
   filter(timein &gt; 10) %&gt;%
   filter(final_game &lt;= &quot;2011-01-01&quot;)</code></pre>
 </div>
+</div>
+<div id="write-out-the-data-sets-to-files" class="section level2">
+<h2>Write out the Data Sets to files</h2>
+<p>Save a few of the temporary files for later plotting and analysis. Saved as CSV files</p>
+<pre class="r"><code>write_csv(eligible, &quot;eligible.csv&quot;)</code></pre>
+</div>
+<div id="summarize-some-of-what-we-know-now" class="section level2">
+<h2>Summarize some of what we know now</h2>
+<p>As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes <strong>18,846</strong> names.</p>
+<p>There are <strong>1741</strong> players that were selected to at least 1 All-star games.</p>
+<p>There are <strong>247</strong> players in the Baseball Hall of Fame in Cooperstown New York. So <strong>14.2%</strong> of the All-stars and just <strong>1.3%</strong> of all players that have played baseball in over 100 years have become Hall of Famers.</p>
+<p>Looking at eligible players of the <strong>18,846</strong> there are <strong>2385</strong> eligible for the hall of fame which means that only <strong>12.7%</strong> of players even have a chance to be inducted.</p>
+</div>
+<div id="some-notes-on-missing-data" class="section level2">
+<h2>Some Notes on missing data</h2>
+<p>Of the 247 hall of fame players, 26 have data missing about either the debut or final game or both. We have dropped those from the final data set since there is not enough data about them. There are an additional 10 players dropped becuase they did not meet the calculated minimum play time and were elected for other reasons that are beyond the scope of this report.</p>
 </div>
 
 
