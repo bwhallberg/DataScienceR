@@ -65,6 +65,13 @@ sumf <- fullplay %>% filter(inducted == 'Y') %>% select (player_id, inducted, de
 sume <- eligible %>% filter(inducted == 'Y') %>% select (player_id, inducted, debut, final_game, ab, w, n)
 rmiss <- setdiff(sumf, sume)
 
+dropme <- colnames(hof)[43:61]
+meanhithof <- hof %>%
+  filter(is.na(gpitch) | gpitch < 170) %>%
+#  summarise_if(is.numeric, mean, na.rm = TRUE) %>%
+  select(-starts_with("birth_"), -starts_with("death_"), -weight, -height, -ba) %>%
+  select(-colnames(hof)[43:61])
+
 #
 #  All game potential
 #

@@ -91,14 +91,11 @@ ggplot(hofa, aes(x=pcas*100, fill=factor(timein))) +
 ```{r stats}
 hof <- eligible %>%
   filter(inducted == 'Y')
-meanhof <- eligible %>%
-  filter(inducted == 'Y') %>%
-  filter(final_game > '1933-01-01') %>%
+meanhithof <- hof %>%
+  filter(is.na(gpitch) == FALSE | gpitch < 100) %>%
   summarise_if(is.numeric, mean, na.rm = TRUE) %>%
   select(-starts_with("birth_"), -starts_with("death_"), -weight, -height, -ba)
-minhof <- eligible %>%
-  filter(inducted == 'Y') %>%
-  filter(final_game > '1933-01-01') %>%
+minhof <- hof %>%
   summarise_if(is.numeric, min, na.rm = TRUE) %>%
   select(-starts_with("birth_"), -starts_with("death_"), -weight, -height, -ba)
 ```
@@ -106,5 +103,10 @@ minhof <- eligible %>%
 
 ###Next is do hof players have data above the mean on a number of statistics?
 
+```{r}
+ggplot(hof, aes(x=hr)) +
+  geom_histogram(bins=20)
+
+```
 
 
