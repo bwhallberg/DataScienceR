@@ -66,14 +66,49 @@ sume <- eligible %>% filter(inducted == 'Y') %>% select (player_id, inducted, de
 rmiss <- setdiff(sumf, sume)
 
 #
+#  All game potential
+#
+tmp <- eligible %>%
+  mutate(pas = case_when (
+    debut > '1933-01-01'       ~ timein,
+    final_game <= '1933-01-01' ~ 0, 
+    TRUE                       ~ timein - floor(difftime('1933-01-01', debut, units="days")/365)
+  )
+  ) %>%
+  mutate(pas = as.integer(pas)) %>%
+  mutate(pcas = allstar/pas)
+
+tmp %>% 
+  select(player_id, allstar, timein, pas, pcas) %>%
+  mutate(itimein = as.integer(timein)) %>%
+  mutate(ipas = as.integer(pas))
+
+#
+#  What is my current working directory
+#
+getwd()
+setwd("..")  # this moves the current working directory
+#  In Rstudio, Session > Set Working Directory > can be used as well
+
+#
 #  Clean up the environment
 #
-rm(all_star)
-rm(all_star_original)
+rm(list = ls(all = TRUE))
+
 
 hof <- eligible %>%
   filter(inducted == 'Y') %>%
-  select(player_id, inducted, allstar, timein)
+  filter(final_game > '1936-01-01') %>%
+  select(player_id, inducted, allstar, timein, final_game)
 
 ggplot(hof, aes(x=player_id, y=allstar)) +
   geom_point()
+
+ggplot(hof, aes(x=allstar, fill=factor(timein), col=factor(timein))) +
+  geom_histogram()
+
+ggplot(hof, aes(x=allstar, fill=factor(timein))) +
+  geom_histogram()
+
+ggplot(hof, aes(x=timein)) +
+  geom_histogram()
