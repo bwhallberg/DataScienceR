@@ -93,6 +93,15 @@ fullplay <- rename(fullplay, allstar = n, rallow = r.y, hrallow = hr.y, bballow 
 fullplay <- rename(fullplay, gpitch = g.y, sopitch = so.y, batterhit = hbp.y)
 fullplay <- rename(fullplay, game = g.x, run = r.x, hit = h.x, hr = hr.x, bb = bb.x, so = so.x, hbp = hbp.x)
 ```
+### Remove some missing data
+
+* if inducted is missing, the value is N
+* if allstar is missing, the valued is 0
+
+```{r cmissing}
+fullplay <- fullplay %>% mutate_at(vars(inducted), funs(replace(., is.na(.), 'N')))
+fullplay <- fullplay %>% mutate_at(vars(allstar), funs(replace(., is.na(.), 0)))
+```
 
 ### Reduce to Hall of Fame Eligible Players
 
@@ -106,21 +115,12 @@ eligible <- fullplay %>%
 ```
 ## Write out the Data Sets to files
 
-Save a few of the temporary files for later plotting and analysis.  Saved as CSV files
+Save a few of the temporary files for later plotting and analysis.  Saved as CSV files and rds
 
 ```{r Writedata}
 write_csv(eligible, "eligible.csv")
+saveRDS(eligible, "eligible.rds")
 ```
-##  Summarize some of what we know now
-
-As we proceed a little bit of summary data is provided. The set of data for players covers the years 1871-2015 and includes **18,846** names.
-
-There are **1741** players that were selected to at least 1 All-star games.
-
-There are **247** players in the Baseball Hall of Fame in Cooperstown New York.  So **14.2%** of the All-stars and just **1.3%** of all players that have played baseball in over 100 years have become Hall of Famers.
-
-Looking at eligible players of the **18,846** there are **2385** eligible for the hall of fame which means that only **12.7%** of players even have a chance to be inducted.
-
 ## Some Notes on missing data
 
 Of the 247 hall of fame players, 26 have data missing about either the debut or final game or both.  We have dropped those from the final data set since there is not enough data about them.  There are an additional 10 players dropped becuase they did not meet the calculated minimum play time and were elected for other reasons that are beyond the scope of this report.
