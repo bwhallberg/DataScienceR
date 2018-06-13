@@ -8,30 +8,36 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Initialize everything
 
-## Open Data Files
+###  load any needed libraries
 
-We need to load the files we want to work with.
-
-```{r getdata}
+```{r loadlib, include=FALSE}
 library(readr)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
+```
+### Open Data Files
 
+
+```{r loaddata}
 eligible = readRDS("eligible.rds")
 ```
-##  A couple of fields will be handy for some plots
+## Explore data
+
+###  Add fields
 
 Added the following fields
 
 * pas - Number of possible all star years for each player based on start of all star games
 * pcas - Percent of possible all star games the player appeared in (note: can be >100% since 4 years had 2 all-star games)
+* lba - Lifetime Batting Average
 
 Converted fields to integers
 
 * pas
-* timein
+
 
 ```{r addfields}
 eligible <- eligible %>%
@@ -81,12 +87,40 @@ ggplot(hofa, aes(x=pcas*100, fill=factor(timein))) +
   geom_histogram()
 
 ```
+### Scatter Plot of all players eligible
+
+This two plots include all eligible players.  First plot is just based on the raw number of times a player was in the all star game.  Plot 2 is the percent of all start appearances in during their baseball career.  
+
+```{r eligallstar}
+ggplot(eligible, aes(x=allstar, y=player_id, color=factor(inducted))) +
+  geom_point(size = 3, alpha = 0.5)
+
+ggplot(eligible, aes(x=pcas*100, y=player_id, color=factor(inducted))) +
+  geom_point(size = 3, alpha = 0.5)
+```
+
+A quick look at the data indicates that at about 10 appearances, the player seems to be more likely to make the Hall of Fame.  It is not the only indicator as many with fewer than 10 made it as well. Of the 10 individuals that were not inducted they break down as follows:
+
+* Two are still eligible, but not yet elected
+* Seven were not elected in the 10 years they were eligible to be elected, now in the hands of the ERA Committee
+* One is Pete Rose and he is banded from the Hall of Fame by Baseball
+
 ##  Now we should look at some data other than all-star
 
-###First thing we do is get summary data for the all stars
+### First thing we do is get summary data for the current hall of fame players
 
 * Mean data in all numeric fields
 * Min data in all numberic fields
+
+Good Possible options are:
+* HR > 500
+* Hits > 2000
+* Lifetime Batting Average > .300
+* RBI > xxx
+* Wins > xxx
+* SO > xxx
+* Saves > xxx
+
 
 ```{r stats}
 hof <- eligible %>%
@@ -94,14 +128,17 @@ hof <- eligible %>%
 meanhithof <- hof %>%
   filter(is.na(gpitch) == FALSE | gpitch < 100) %>%
   summarise_if(is.numeric, mean, na.rm = TRUE) %>%
+  mutate(lba = hit/ab) %>%
   select(-starts_with("birth_"), -starts_with("death_"), -weight, -height, -ba)
-minhof <- hof %>%
+minhithof <- hof %>%
+  filter(is.na(gpitch) == FALSE | gpitch < 100) %>%
   summarise_if(is.numeric, min, na.rm = TRUE) %>%
+  mutate(lba = hit/ab) %>%
   select(-starts_with("birth_"), -starts_with("death_"), -weight, -height, -ba)
 ```
 
+### Do some plots of hall of fame player data
 
-###Next is do hof players have data above the mean on a number of statistics?
 
 ```{r}
 ggplot(hof, aes(x=hr)) +
@@ -109,4 +146,4 @@ ggplot(hof, aes(x=hr)) +
 
 ```
 
-
+### Next is do Hall of Fame players have data above the mean on a number of statistics?
