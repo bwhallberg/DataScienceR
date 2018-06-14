@@ -141,9 +141,9 @@ minhithof <- hof %>%
 
 
 ```{r}
-ggplot(hof, aes(x=hr)) +
-  geom_histogram(bins=20)
-
+p <- ggplot(eligible, aes(y=player_id, color=factor(inducted)), size=1, alpha=0.5)
+p + geom_point(aes(x=hit))
+p + geom_point(aes(x=hr))
 ```
 
 ### Next is do Hall of Fame players have data above the mean on a number of statistics?
