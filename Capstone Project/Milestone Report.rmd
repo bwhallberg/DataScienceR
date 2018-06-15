@@ -1,0 +1,586 @@
+---
+title: "Capstone Milestone Report"
+author: "Brian Hallberg"
+date: "June 14, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Introduction
+This project will attempt to create a predictive model for identifying players that will become memebrs of the Baseball Hall of Fame using career statistics including All-Star Game appearances as well as possibly hits, home runs, runs, career batting average, runs batted in for non pitchers and wins, strike outs, saves, gams pitched for pitchers.
+
+## Data
+The project makes use of a data set called the History of Baseball that contains data from professional baseball covering the period of 1871 to 2015.  The data set includes tables for general player information, All-Star Game appearences, Hall of Fame selections, as well as pitching and hitting yearly statistics.  
+
+There are additional tables that are avaialble as part of the data set, but not used in this project.  The data is available on the Kraggle web side and can be obtained at this here:
+
+* https://www.kaggle.com/seanlahman/the-history-of-baseball
+
+The hall of fame players are identified using a inducted field in the hall_of_fame table.  The project will attempt to use player data and all-start appearances to predict which players were inducted.  Significant tables and fields containing the data this project will use are described below.
+
+### Player Table
+The player table contains unique code asssigned to each player (player_id), as well as the dates of their debut and final game.  Also used is the first and last name of the player.
+
+### All_star Table
+The all_star table contains a field for allergy type to identify the category of allergy, as well as for reaction name for the type of reaction and severity name for the severity of the allergic reaction.  The allergy table also contains a field for medication ndc codes to map medication allergies to a specific medication.
+
+### Batting Table
+The diagnosis table contains the ICD9 Code to specifically identify the diagnosis, as well as an Acute indicator to flag acute instances of a diagnosis.  Although there is a diagnosis description field, its contents are not standardized and thus not suitable for analysis.  Instead, the ICD9 codes can be mapped to names from a table available online: [List of ICD-9 Codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes).
+
+### Hall_of_fame Table
+The medication table contains the NdcCode field, which specifically identifies medications, as well as the Medication Name.
+
+### Pitching Table
+The transcript table contains fields for height, weight, BMI, SystolicBP, DiastolicBP, respiratory rate, heart rate, and temperature.
+
+## Limitations
+Although there is also an immunization table and a smoking status table, these do not provide sufficient data to analyze.  Although the data structure allows for labs to link to visit transcripts, none do.  Smoking data is too sparse and vague to use for analysis.
+
+## Data Cleaning
+The raw data was contained in Comma Separated Values (CSV) files, one for each table.  Each file was loaded into a separate data frame using read_csv().  Relevant fields were selected using select(). The example below shows the patient and diagnosis table files being read into data frames.
+
+```{r eval = FALSE}
+# read patient table into data frame.
+patient <- read_csv("db/training_patient.csv") %>%
+  select(-PracticeGuid)
+
+# read diagnosis table into data frame.  
+diagnosis <- read_csv("db/training_diagnosis.csv") %>%
+  select(DiagnosisGuid, DiagnosisDescription, PatientGuid, ICD9Code, StartYear, StopYear, Acute)
+```
+
+Since data was spread across different tables, the corresponding data frames needed to be joined in order to pull the data together into a single data frame.  The example below shows the joining of patient, diagnosis, and transcript data.
+
+```{r eval=FALSE}
+# join the diagnosis frame and the transcript/diagnosis join frame, removing the join primary key (it's unnecessary)
+diagJoin <- left_join(diagnosis, transDiag) %>% select(-TranscriptDiagnosisGuid)
+
+# join the above frame with the transcript frame
+diagTran <- left_join(diagJoin, transcript)
+
+# join the patient frame with the above frame
+patientDiagnosis <- left_join(patient, diagTran)
+```
+
+Some fields needed to be derived.  For example, the age of the patients needed to be derived from the year of birth.  The median year for the data set was 2010, and was used to derive the age from the patient data.
+
+```{r eval = FALSE}
+patient <- patient %>% mutate(age = 2010 - YearOfBirth)
+```
+
+The allergy field for the medication ndc code had to be renamed to disambiguate it from the prescription field of the same name.  Numerous fields needed to be converted into numeric or integer types.  In order to analyze systolic and diastolic blood pressure as a pair, a field for pulse pressure (systolic bp - diastolic bp) was added.
+
+```{r eval = FALSE}
+# add pulsePressure column to transcript (SystolicBP - DiastolicBP)
+transcript <- transcript %>%
+  filter(!is.na(SystolicBP)) %>% filter(!is.na(DiastolicBP)) %>% filter(SystolicBP > 0 & DiastolicBP > 0) %>%
+  mutate(pulsePressure = SystolicBP - DiastolicBP)
+```
+
+Some of the data had too much differentiation and needed to be chunked in order to be analyzed.  For example, the diagnoses were chunked into categories based on ICD-9 Code ranges.  Some of the data needed to be filtered to remove insignificant data.
+
+```{r eval=FALSE}
+patientDiagnosis$diagCat <-
+  ifelse((as.integer(patientDiagnosis$ICD9Code) < 140), 
+    "Infectious/Parasitic",
+    ifelse((as.integer(patientDiagnosis$ICD9Code) >= 140 &
+      as.integer(patientDiagnosis$ICD9Code) < 240), 
+      "Neoplasms",
+      ifelse((as.integer(patientDiagnosis$ICD9Code) >=240 &
+        as.integer(patientDiagnosis$ICD9Code) < 280),
+          "Endocrine/Nutritional/Metabolic",
+          ...
+```
+
+There were few if any records in the allergy table for the various types of medication allergies among the diabetic population.  And for most of the remaining data, the ratio of diabetic patients with a particular medication allergy to non-diabetic patients was not of note.  Therefore, the medication allergy data was filtered down to those for which there was at least one diabetic patient with an allergy and at least 20 patients overall with an allergy.  A medication map needed to be created to map the NDC code for medication to the medication name.
+
+```{r eval=FALSE}
+# create medicationMap data frame linking medication names to their NDC Codes
+medicationMap <- medication %>% select(MedicationNdcCode, MedicationName) %>% group_by(MedicationNdcCode) %>% distinct(MedicationName) %>% arrange(MedicationNdcCode)
+
+# use inner join to filter patients to those 
+# with medication allergies, and pull in the names for the medications
+allergyMeds <- inner_join(patientAllergy,medicationMap, by = c("AllergyMedicationNdcCode" = "MedicationNdcCode"))
+
+# identify the medications by name for which diabetic patients have allergies
+diabeticMedNames <- allergyMeds %>% filter(dmIndicator == "1") %>% select(MedicationName) %>% distinct()
+
+# use inner join to filter patients to those using the medications for which
+# diabetic patients also have allergies (filter out all medication allergies
+# for which diabetic patients do not have allergies)
+diabeticAllergyMeds <- inner_join(allergyMeds,diabeticMedNames)
+
+# identify the medications for which at least 20 patients have allergies
+topAllergyNdcCodes <- diabeticAllergyMeds %>%
+  group_by(AllergyMedicationNdcCode) %>% 
+  summarise(n = n()) %>%
+  ungroup() %>%
+  filter(n >= 20) %>%
+  select(AllergyMedicationNdcCode)
+
+# use inner join to filter data to those medications for which at least 20 
+# patients have allergies
+diabeticAllergyMeds <- inner_join(allergyMeds,topAllergyNdcCodes)
+```
+
+For medication usage, the vast amount of data needed to be filtered still more.  Only data where diabetic patients accounted for greater than 60% were included.  Also, only data where there were greater than 300 records were included.
+
+```{r eval = FALSE}
+# get a count of prescriptions for medications used by diabetic patients
+diabeticMedicationList <- patientPrescription %>% filter(dmIndicator == 1) %>% group_by(MedicationName) %>% summarise(n = n()) %>% ungroup() %>% arrange(desc(n))
+
+# join with a count of prescriptions for medications used by all patients
+diabeticMedicationList <- inner_join(diabeticMedicationList, patientPrescription %>% group_by(MedicationName) %>% summarise(n = n()) %>% ungroup() %>% arrange(desc(n)), by="MedicationName")
+
+# get the ratio between diabetic prescriptions and total prescriptions
+diabeticMedicationList <- diabeticMedicationList %>%
+  mutate(useRatio = n.x/n.y)
+
+# had to tweak the filter to get a reasonably small set of the medications with the highest ratio of diabetic prescriptions with the highest number of overall prescriptions
+topDiabeticMedicationList <- diabeticMedicationList %>% filter(n.y > 300 & useRatio > .6) %>% arrange(desc(useRatio))
+
+# create a data frame limited to the top diabetic prescription list
+topDiabeticPrescriptions <- inner_join(patientPrescription, topDiabeticMedicationList, by="MedicationName")
+```
+
+The abnormal flags needed to be reordered in order to display in a logical order (high to low) rather than in alphabetical order.  Likewise, a field was added to provide a text equivalent for the diabetic patient indicator in order to be interpreted properly in the graphs.
+
+```{r include = FALSE}
+library(tidyr)
+library(dplyr)
+library(dbplyr)
+library(readr)
+library(ggplot2)
+library(Hmisc)
+
+# read patient table into data frame.
+patient <- read_csv("db/training_patient.csv") %>%
+  select(-PracticeGuid)
+
+# read diagnosis table into data frame.  
+diagnosis <- read_csv("db/training_diagnosis.csv") %>%
+  select(DiagnosisGuid, DiagnosisDescription, PatientGuid, ICD9Code, StartYear, StopYear, Acute)
+
+# read allergy table into data frame. Change column name of MedicationNdcCode to AllergyMedicationNdcCode to diambiguate between medication allergies and prescriptions.
+allergy <- read_csv("db/training_allergy.csv") %>%
+  select(AllergyGuid, PatientGuid, AllergyType, AllergyStartYear = StartYear, ReactionName, SeverityName, AllergyMedicationNdcCode = MedicationNdcCode)
+
+# read prescription table into data frame.
+prescription <- read_csv("db/training_prescription.csv") %>%
+  select(PrescriptionGuid, PatientGuid, MedicationGuid, PrescriptionYear, Quantity, GenericAllowed)
+
+# read medication table into data frame.
+medication <- read_csv("db/training_medication.csv") %>%
+  select(MedicationGuid, PatientGuid, MedicationNdcCode, MedicationName, MedicationStrength, Schedule, DiagnosisGuid)
+
+# read immunization table into data frame.
+immunization <- read_csv("db/training_immunization.csv") %>%
+  select(ImmunizationGuid, PatientGuid, VaccineName, AdministeredYear, CvxCode)
+
+# read lab tables into data frames.
+labResult <- read_csv("db/training_labResult.csv") %>%
+  select(LabResultGuid,PatientGuid, TranscriptGuid)
+
+labPanel <- read_csv("db/training_labPanel.csv") %>%
+  select(LabResultGuid, LabPanelGuid, PanelName)
+
+labObservation <- read_csv("db/training_labObservation.csv")
+
+
+# read transcript table into data frame.
+transcript <- read_csv("db/training_transcript.csv") %>%
+  select(TranscriptGuid, PatientGuid, VisitYear, Height, Weight, BMI, SystolicBP, DiastolicBP, RespiratoryRate, HeartRate, Temperature)
+
+# read smoke table into data frame.
+smoke <- read_csv("db/training_smoke.csv") %>%
+  select(PatientGuid, SmokeEffectiveYear, SmokingStatus_Description, SmokingStatus_NISTCode)
+
+#read join tables into data frames.
+transDiag <- read_csv("db/training_transcriptDiagnosis.csv")
+transMed <- read_csv("db/training_transcriptMedication.csv")
+transAllergy <- read_csv("db/training_transcriptAllergy.csv")
+
+# add age column to patient data frame: derived from subtracting 2010, the median year of the patient data (range: 2009 - 2012)
+patient <- patient %>% mutate(age = 2010 - YearOfBirth)
+
+# add daibetesStatus column to patient data frame for display in graphs.
+patient$diabetesStatus <- ifelse(patient$dmIndicator, "Diabetic", "NonDiabetic")
+
+# change type of AllergyMedicationNdcCode column to character.
+allergy <- transform(allergy, AllergyMedicationNdcCode = as.character(AllergyMedicationNdcCode))
+
+# change transcript Height & Weight to numeric types
+transcript <- transform(transcript, Height = as.numeric(Height), Weight = as.numeric(Weight), Temperature = as.numeric(Temperature), RespiratoryRate = as.numeric(RespiratoryRate), HeartRate = as.numeric(HeartRate), SystolicBP = as.numeric(SystolicBP), DiastolicBP = as.numeric(DiastolicBP))
+  
+# add pulsePressure column to transcript (SystolicBP - DiastolicBP)
+transcript <- transcript %>%
+  filter(!is.na(SystolicBP)) %>% filter(!is.na(DiastolicBP)) %>% filter(SystolicBP > 0 & DiastolicBP > 0) %>%
+  mutate(pulsePressure = SystolicBP - DiastolicBP)
+
+# prescription data frame
+presMed <- left_join(prescription, medication)
+presJoin <- left_join(presMed, transMed) %>% select(-TranscriptMedicationGuid)
+presTran <- left_join(presJoin, transcript)
+
+# diagnosis data frame
+diagJoin <- left_join(diagnosis, transDiag) %>% select(-TranscriptDiagnosisGuid)
+diagTran <- left_join(diagJoin, transcript)
+
+# allergy data frame
+allerJoin <- left_join(allergy, transAllergy) %>% select(-TranscriptAllergyGuid)
+allerTran <- left_join(allerJoin, transcript)
+
+# labs data frame
+labs <- left_join(
+  left_join(labResult, labPanel, by="LabResultGuid"),
+  labObservation,
+  by="LabPanelGuid"
+)  
+
+# smoking data frame
+smoke <- smoke %>% mutate(TranscriptGuid = "SMOKE")
+
+# master data frame (comprised of all data frames)
+dataJoin <- full_join(presJoin, diagJoin)
+dataJoin <- full_join(dataJoin, allerJoin)
+dataJoin <- full_join(dataJoin, labs)
+dataJoin <- full_join(dataJoin, smoke)
+dataMaster <- left_join(dataJoin, transcript)
+
+# patient data frames (join patient table to each data frame)
+patientPrescription <- left_join(patient, presTran)
+patientDiagnosis <- left_join(patient, diagTran)
+# patientAllergy <- inner_join(patient, allerTran)
+patientAllergy <- inner_join(patient, allerTran)
+# patientLabs <- inner_join(patient, labs)
+patientLabs <- left_join(patient, labs)
+patientSmoke <- left_join(patient, smoke)
+patientMaster <- left_join(patient, dataMaster)
+# patientTranscript <- inner_join(patient, transcript)
+patientTranscript <- left_join(patient, transcript)
+
+# diabetic data frames filter patient data frames based on dmIndicator == 1
+diabeticBase <- patient %>% filter(dmIndicator == 1)
+diabeticPrescription <- patientPrescription %>% filter(dmIndicator == 1)
+diabeticDiagnosis <- patientDiagnosis %>% filter(dmIndicator == 1)
+diabeticAllergy <- patientAllergy %>% filter(dmIndicator == 1)
+diabeticLabs <- patientLabs %>% filter(dmIndicator == 1)
+diabeticSmoke <- patientSmoke %>% filter(dmIndicator == 1)
+diabeticMaster <- patientMaster %>% filter(dmIndicator == 1)
+
+# create medicationMap data frame linking medication names to their NDC Codes
+medicationMap <- medication %>% select(MedicationNdcCode, MedicationName) %>% group_by(MedicationNdcCode) %>% distinct(MedicationName) %>% arrange(MedicationNdcCode)
+
+# use inner join to filter patients to those 
+# with medication allergies, and pull in the names for the medications
+allergyMeds <- inner_join(patientAllergy,medicationMap, by = c("AllergyMedicationNdcCode" = "MedicationNdcCode"))
+
+# identify the medications by name for which diabetic patients have allergies
+diabeticMedNames <- allergyMeds %>% filter(dmIndicator == "1") %>% select(MedicationName) %>% distinct()
+
+# use inner join to filter patients to those using the medications for which
+# diabetic patients also have allergies (filter out all medication allergies
+# for which diabetic patients do not have allergies)
+diabeticAllergyMeds <- inner_join(allergyMeds,diabeticMedNames)
+
+# identify the medications for which at least 20 patients have allergies
+topAllergyNdcCodes <- diabeticAllergyMeds %>%
+  group_by(AllergyMedicationNdcCode) %>% 
+  summarise(n = n()) %>%
+  ungroup() %>%
+  filter(n >= 20) %>%
+  select(AllergyMedicationNdcCode)
+
+# use inner join to filter data to those medications for which at least 20 
+# patients have allergies
+diabeticAllergyMeds <- inner_join(allergyMeds,topAllergyNdcCodes)
+
+# identify which medications are most used by diabetic patients in comparison to non-diabetic patients
+
+# get a count of prescriptions for medications used by diabetic patients
+diabeticMedicationList <- patientPrescription %>% filter(dmIndicator == 1) %>% group_by(MedicationName) %>% summarise(n = n()) %>% ungroup() %>% arrange(desc(n))
+
+# join with a count of prescriptions for medications used by all patients
+diabeticMedicationList <- inner_join(diabeticMedicationList, patientPrescription %>% group_by(MedicationName) %>% summarise(n = n()) %>% ungroup() %>% arrange(desc(n)), by="MedicationName")
+
+# get the ratio between diabetic prescriptions and total prescriptions
+diabeticMedicationList <- diabeticMedicationList %>%
+  mutate(useRatio = n.x/n.y)
+
+# had to tweak the filter to get a reasonably small set of the medications with the highest ratio of diabetic prescriptions with the highest number of overall prescriptions
+topDiabeticMedicationList <- diabeticMedicationList %>% filter(n.y > 300 & useRatio > .6) %>% arrange(desc(useRatio))
+
+# create a data frame limited to the top diabetic prescription list
+topDiabeticPrescriptions <- inner_join(patientPrescription, topDiabeticMedicationList, by="MedicationName")
+
+# sort the abnormal statuses in the labs data
+patientLabs$AbnormalFlagsSorted = factor(patientLabs$AbnormalFlags, levels = rev(c("Panic Low", "Alert Low", "Below Normal Low", "NA", "Above Normal High", "Alert High", "Panic High", "Abnormal Result", "UKNOWN")))
+
+# create diagCat column in patientDiagnosis containing diagnosis categories corresponding to ranges of ICD9 Codes
+patientDiagnosis$diagCat <-
+  ifelse((as.integer(patientDiagnosis$ICD9Code) < 140), 
+    "Infectious/Parasitic",
+    ifelse((as.integer(patientDiagnosis$ICD9Code) >= 140 &
+      as.integer(patientDiagnosis$ICD9Code) < 240), 
+      "Neoplasms",
+      ifelse((as.integer(patientDiagnosis$ICD9Code) >=240 &
+        as.integer(patientDiagnosis$ICD9Code) < 280),
+          "Endocrine/Nutritional/Metabolic",
+          ifelse((as.integer(patientDiagnosis$ICD9Code) >= 280 &
+            as.integer(patientDiagnosis$ICD9Code) < 290),
+            "Blood",
+            ifelse((as.integer(patientDiagnosis$ICD9Code) >= 290 &
+              as.integer(patientDiagnosis$ICD9Code) < 320),
+              "Mental",
+              ifelse((as.integer(patientDiagnosis$ICD9Code) >= 320 &
+                as.integer(patientDiagnosis$ICD9Code) < 390),
+                "Nervous",
+                ifelse((as.integer(patientDiagnosis$ICD9Code) >= 390 &
+                  as.integer(patientDiagnosis$ICD9Code) < 460),
+                  "Circulatory",
+                  ifelse((as.integer(patientDiagnosis$ICD9Code) >= 460 &
+                    as.integer(patientDiagnosis$ICD9Code) < 520),
+                    "Respiratory",
+                    ifelse((as.integer(patientDiagnosis$ICD9Code) >= 520 &
+                      as.integer(patientDiagnosis$ICD9Code) < 580),
+                      "Digestive",
+  ifelse((as.integer(patientDiagnosis$ICD9Code) >= 580 &
+    as.integer(patientDiagnosis$ICD9Code) < 630), 
+    "Genitourinary",
+    ifelse((as.integer(patientDiagnosis$ICD9Code) >= 630 &
+      as.integer(patientDiagnosis$ICD9Code) < 680), 
+      "Pregnancy",
+      ifelse((as.integer(patientDiagnosis$ICD9Code) >=680 &
+        as.integer(patientDiagnosis$ICD9Code) < 710),
+          "Skin",
+          ifelse((as.integer(patientDiagnosis$ICD9Code) >=710 &
+            as.integer(patientDiagnosis$ICD9Code) < 740),
+            "Musculoskeletal",
+            ifelse((as.integer(patientDiagnosis$ICD9Code) >= 740 &
+              as.integer(patientDiagnosis$ICD9Code) < 760),
+              "Congenital",
+              ifelse((as.integer(patientDiagnosis$ICD9Code) >= 760 &
+                as.integer(patientDiagnosis$ICD9Code) < 780),
+                "Perinatal",
+                ifelse((as.integer(patientDiagnosis$ICD9Code) >= 780 &
+                  as.integer(patientDiagnosis$ICD9Code) < 800),
+                  "Ill Defined", 
+                  ifelse((as.integer(patientDiagnosis$ICD9Code) >= 800),
+                    "Injury/Poisoning", 
+                    "NULL"
+                    )
+                  )
+                )
+            )
+          )
+      )
+    )
+  ))))))))))
+```
+
+\pagebreak
+
+## Initial Findings
+In order to identify which data might be useful in predicting diabetic patients, some exploratory analysis was performed to compare the data between patients with diabetes and those without.  The results of this analysis which indicate a potentially useful data field are shown below.
+
+### Age & Gender
+The diabetic population trends male and older than the non-diabetic population.  Since Age data is continuous, a box plot was used.
+
+```{r fig.height = 3}
+boxplot(age~diabetesStatus,data=patient, outline = FALSE, main = "Patient Age", ylab = "Age (yr)", xlab = "Diabetes Status")
+```
+
+Since Gender data is categorical, a bar graph is used.  Note that although the number of male and female diabetic patients are similar, the number of male non-diabetic patients is smaller, resulting in a larger ratio of male diabetic patients.
+
+```{r fig.height = 3}
+ggplot(arrange(patient, rev(dmIndicator)), aes(x=Gender,fill=factor(diabetesStatus, levels = c("NonDiabetic","Diabetic")))) +
+  geom_bar(position = "dodge") +
+  labs(title = "Patient Gender", fill="Diabetes Status") +
+  theme(plot.title = element_text(hjust = "0.5"))
+```
+
+\pagebreak
+
+### BMI
+Diabetic patients have a slightly higher weight and shorter height than non-diabetic patients.  Thus, their BMI trends higher.
+
+```{r echo = FALSE, fig.height = 3}
+boxplot(BMI~diabetesStatus, data=patientTranscript %>% filter(!is.na(BMI)) %>% filter(BMI >0), outline=FALSE, main = "BMI", ylab = "BMI", xlab = "Diabetes Status")
+```
+
+### Allergies
+Among non-medical allergy types, there appears to be a large proportion of diabetic patients with egg and peanut allergies in comparison to the general population.  The number of diabetic patients with egg allergies actually outnumbers non-diabetic patients.  The plot required significant tweaking in order to display in a meaningful way.
+
+```{r fig.height = 3}
+
+patientAllergy %>%
+  filter(AllergyType != "Medication") %>%
+  ggplot(aes(x=AllergyType, fill=factor(diabetesStatus, levels = c("NonDiabetic","Diabetic"))))+
+  geom_bar(position="dodge") +
+  labs(title = "Incidence of Allergies", fill = "Diabetes Status") +
+  theme(plot.margin = margin(0,0,0,2,"cm"), axis.text.x = element_text(angle = 30, hjust = 1), plot.title = element_text(hjust = 0.5))
+```
+
+\pagebreak
+
+### Blood Pressure
+The pulse pressure (Systolic BP - Diastolic BP) of diabetic patients is slightly higher than non-diabetic patients.
+
+```{r echo = FALSE}
+boxplot(as.integer(pulsePressure)~diabetesStatus, data=patientTranscript %>% filter(pulsePressure != "NULL"), outline=FALSE, main = "Pulse Pressure", ylab = "Pulse Pressure (mmHg)", xlab = "Diabetes Status")
+```
+
+\pagebreak
+
+### Diagnosis Categories
+To simplify analysis of diagnoses, the various diagnoses were divided into categories based on the ICD9 Codes.  The diagnosis categories with the highest ratio between diabetic and non-diabetic patients is Circulatory.  Within the Circulatory, there are almost as many diabetic patients with Essential Hypertension (ICD9 Code #401) as non-diabetic patients. 
+
+```{r echo = FALSE}
+patientDiagnosis %>%
+  filter(diagCat != "NULL") %>%
+  ggplot(aes(x=diagCat, fill=factor(diabetesStatus, levels = c("NonDiabetic","Diabetic"))))+
+  geom_bar(position="dodge") +
+  labs(title="Comorbidities", fill = "Diabetes Status") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo = FALSE, fig.height = 3}
+patientDiagnosis %>%
+  filter(diagCat == "Circulatory") %>%
+  filter(as.integer(ICD9Code) < 430) %>%
+  filter(Acute == 1) %>%
+  ggplot(aes(x=factor(as.integer(ICD9Code)), fill=factor(diabetesStatus, levels = c("NonDiabetic","Diabetic"))))+
+  geom_bar(position="dodge") +
+  labs(title="Acute Circulatory Comorbidities", fill = "Diabetes Status", x = "ICD9 Codes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5))
+```
+
+\pagebreak
+
+### Lab Result Analysis
+The lab results were limited to those for which there were sufficient abnormal readings data for the diabetic population.  For each lab result, an overall measure of central tendency was analyzed, as well as an analysis of abnormal lab result status.
+
+#### Hemoglobin Lab Results
+Hemoglobin levels have a lower central tendency in diabetic patients than in non-diabetic patients.  When results recorded as abnormal are separated out, the diabetic population has a larger percentage of below normal readings.  The central tendency of above normal readings were higher and of below normal readings were lower among the diabetic population.  The central tendency of normal readings was slightly lower in the diabetic population.
+
+```{r echo = FALSE, fig.height = 3}
+boxplot(ObservationValue~diabetesStatus, data=patientLabs %>% filter(HL7Text == "Hemoglobin"), outline=FALSE, main = "Hemoglobin Levels", ylab = "Hemoglobin (g/dL)", xlab = "Diabetes Status")
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Hemoglobin") %>%
+  ggplot(aes(x=diabetesStatus, fill=AbnormalFlagsSorted))+
+  geom_bar(position="fill") +
+  labs(title = "Hemoglobin Result Status", x = "Diabetes Status", fill = "Result Status", y = "Percent") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Hemoglobin") %>%
+  ggplot(aes(x=diabetesStatus,y=ObservationValue, fill=AbnormalFlags)) +
+  stat_boxplot(geom="boxplot", position="dodge", coef=2, outlier.shape=NA, na.rm=TRUE, show.legend = TRUE) + 
+  labs(title = "Hemoglobin Abnormal Levels", x = "Diabetes Status", fill = "Result Status", y = "Hemoglobin (g/dL)") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+\pagebreak
+
+#### Hematocrit Lab Results
+The central tendency of Hematocrit percentage was lower in the diabetic population than in the non-diabetic population. The ratio of above normal readings was lower and of below normal readings was higher among the diabetic population.  The central tendency of above normal readings was higher and of below normal readings was lower in the diabetic population.  The central tendency of normal readings was lower in the diabetic population.
+
+```{r echo = FALSE, fig.height = 3}
+boxplot(ObservationValue~diabetesStatus, data=patientLabs %>% filter(HL7Text == "Hematocrit"), outline=FALSE, main = "Hematocrit Levels", ylab = "Hematocrit %", xlab = "Diabetes Status")
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Hematocrit") %>%
+  ggplot(aes(x=diabetesStatus, fill=AbnormalFlagsSorted))+
+  geom_bar(position="fill") +
+  labs(title = "Hematocrit Result Status", x = "Diabetes Status", fill = "Result Status", y = "Percent") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo = FALSE, fig.height = 3}
+patientLabs %>%
+  filter(HL7Text == "Hematocrit") %>%
+  ggplot(aes(x=diabetesStatus,y=ObservationValue, fill=AbnormalFlags)) +
+  stat_boxplot(geom="boxplot", position="dodge", coef=2, outlier.shape=NA, na.rm=TRUE, show.legend = TRUE) + 
+  labs(title = "Hematocrit Abnormal Levels", x = "Diabetes Status", fill = "Result Status", y = "Hematocrit Percent") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+\pagebreak
+
+#### Triglyceride Lab Results
+The central tendency of triglyceride levels is higher in the diabetic population than in the non-diabetic population.  There is a higher ratio of above normal triglyceride readings in the diabetic population, and both the above normal and normal triglyceride levels are higher in the diabetic population.
+
+```{r echo = FALSE, fig.height = 3}
+boxplot(ObservationValue~diabetesStatus, data=patientLabs %>% filter(HL7Text == "Triglyceride"), outline=FALSE, main = "Triglyceride Levels", ylab = "Triglyceride (mg/dL)", xlab = "Diabetes Status")
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Triglyceride") %>%
+  ggplot(aes(x=diabetesStatus, fill=AbnormalFlagsSorted))+
+  geom_bar(position="fill") +
+  labs(title = "Triglyceride Result Status", x = "Diabetes Status", fill = "Result Status", y = "Percent") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo = FALSE, fig.height = 3}
+patientLabs %>%
+  filter(HL7Text == "Triglyceride") %>%
+  ggplot(aes(x=diabetesStatus,y=ObservationValue, fill=AbnormalFlags)) +
+  stat_boxplot(geom="boxplot", position="dodge", coef=2, outlier.shape=NA, na.rm=TRUE, show.legend = TRUE) + 
+  labs(title = "Triglyceride Abnormal Levels", x = "Diabetes Status", fill = "Result Status", y = "Triglyceride (mg/dL)") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+\pagebreak
+
+#### Platelets Lab Results
+The central tendency of Platelet levels is lower in the diabetic population than in the non-diabetic population, particularly in the normal set.  The ratio of both above and below normal readings are greater in the diabetic population, but the abnormal levels aren't as severe.
+
+```{r echo = FALSE, fig.height = 3}
+boxplot(ObservationValue~diabetesStatus, data=patientLabs %>% filter(HL7Text == "Platelets"), outline=FALSE, main = "Platelet Levels", ylab = "Platelets (x10E3/uL)", xlab = "Diabetes Status")
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Platelets") %>%
+  ggplot(aes(x=diabetesStatus, fill=AbnormalFlagsSorted))+
+  geom_bar(position="fill") +
+  labs(title = "Platelets Result Status", x = "Diabetes Status", fill = "Result Status", y = "Percent") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo = FALSE, fig.height = 2}
+patientLabs %>%
+  filter(HL7Text == "Platelets") %>%
+  ggplot(aes(x=diabetesStatus,y=ObservationValue, fill=AbnormalFlags)) +
+  stat_boxplot(geom="boxplot", position="dodge", coef=2, outlier.shape=NA, na.rm=TRUE, show.legend = TRUE) + 
+  labs(title = "Platelets Abnormal Levels", x = "Diabetes Status", fill = "Result Status", y = "Platelets (x10E3/uL)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+\pagebreak
+
+## Approach
+The intent is to use ...  
+
+The predictive quality of the model will be evaluated through cross validation.  This model could be compared to a K-means cluster model using Gower distance for the mix of continuous and categorized data.
+
+The dependent variable will be inducted, and the independent variables will be some combination of ...
+
+The final report will outline the process of how this model is developed, any further data cleaning required, and evaluation.
