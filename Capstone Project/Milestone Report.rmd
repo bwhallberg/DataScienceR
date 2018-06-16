@@ -163,15 +163,20 @@ In order to identify which data might be useful in predicting hall of fame induc
 ### All-Star Game Appearances
 So one idea is that the number of game apperances would be a good indicator of a future hall of famer. This scatter plot shows players and whether they were inducted and their all star appearances.  The second one shows the players and the percentage of their career they played it the all-star game.
 
+In a sense this is a crowd source approach since the all-star voting tends to be along the lines of popular players.  In most cases, this also follows with the best players, but there are times where the population may like a player more, but there is more talent in the other player.  The hope here is that over time, the best players make the team more than just a popular player.
+
+A quick review of these two plots indicates that above 10 appearances or above 60% of your career making an all-star game may be a good indicator of hall of fame induction.  More needs to be done.
+
 ```{r eligallstar}
 library(ggplot2)
 ggplot(eligible, aes(x=allstar, y=player_id, color=factor(inducted))) +
   geom_point(size = 3, alpha = 0.5, na.rm=TRUE)
+```
 
+```{r eligallstarpercent}
 ggplot(eligible, aes(x=pcas*100, y=player_id, color=factor(inducted))) +
   geom_point(size = 3, alpha = 0.5, na.rm=TRUE)
 ```
-
 
 \pagebreak
 
@@ -180,36 +185,60 @@ Here we do some scatter plots of data for hitters.  We remove the data for pitch
 
 ```{r echo = FALSE}
 p <- ggplot(eligible, aes(y=player_id, color=factor(inducted)), size=1, alpha=0.5)
-#p + geom_point(aes(x=hit))
-#p + geom_point(aes(x=hr))
-#p + geom_point(aes(x=ba))
-#p + geom_point(aes(x=rbi))
-#p + geom_point(aes(x=run))
-#p + geom_point(aes(x=w))
-#p + geom_point(aes(x=sopitch))
-#p + geom_point(aes(x=gpitch))
 ```
 
 
 ####  Hits
-Scatter plot of Hits versus player color coded by induction status
+Scatter plot of Hits versus player color coded by induction status. Higher numbers of these do seem to indicated a better chance of induction.
 
 ```{r echo=FALSE}
 p + geom_point(aes(x=hit), na.rm=TRUE)
 ```
 
 
-####  Home Runs
+#### Home Runs
+Scatter plot of home runs versus player color coded by induction status.  This is another where the data seems to indicate higher numbers of home runs may predict induction.
 
+```{r}
+p + geom_point(aes(x=hr))
+```
+
+#### Batting Average
+Scatter plot of batting average versus player color coded by induction status. This one needs more work.  The majority of players are in the .200 to .300 and very few are above a .300. If that .200 and above are enhanced it may show something but this initial plot is not very telling.
+
+```{r}
+p + geom_point(aes(x=ba))
+```
+
+#### Runs Batted In
+Scatter plot of runs batted in versus player color coded by induction status.  Could be a good field to add to the model.
+```{r}
+p + geom_point(aes(x=rbi))
+```
+#### Runs Scored
+Scatter plot of runs versus player color coded by induction status.  Another promising field to include in the final model.
+```{r}
+p + geom_point(aes(x=run))
+```
 \pagebreak
 
 ### Data for Pitchers
 
 #### Wins
-
-
+Scatter plot of wins versus player color coded by induction status.  Another promising field to include in the final model. 
+```{r}
+p + geom_point(aes(x=w))
+```
+#### Strike Outs
+Scatter plot of strikeouts versus player color coded by induction status.  Another promising field to include in the final model.
+```{r}
+p + geom_point(aes(x=sopitch))
+```
 #### Game Appearances
-
+Scatter plot of games pitched versus player color coded by induction status. This one does not seem to show a pattern that would predict induction.
+```{r}
+p + geom_point(aes(x=gpitch))
+```
 
 
 \pagebreak
