@@ -94,7 +94,8 @@ tmp %>%
 #  What is my current working directory
 #
 getwd()
-setwd("..")  # this moves the current working directory
+setwd("..")  # this moves the current working directory up a level
+setwd("~/Documents/Rstudio/DataScienceR/Capstone Project")  #  Set current working directory to this directory
 #  In Rstudio, Session > Set Working Directory > can be used as well
 
 #

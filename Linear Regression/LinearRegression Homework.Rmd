@@ -1,0 +1,96 @@
+---
+title: "LinearRegression Homework"
+author: "Brian Hallberg"
+date: "6/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##  Get the data needed
+
+Load the states data.
+Grab the labels incase we need them later.
+
+```{r}
+states.data <- readRDS("dataSets/states.rds") 
+states.info <- data.frame(attributes(states.data)[c("names", "var.labels")])
+```
+
+## Exercise: least squares regression
+────────────────────────────────────────
+
+Use the /states.rds/ data set. Fit a model predicting energy consumed per capita (energy) from the percentage of residents living in metropolitan areas (metro). Be sure to
+
+1. Examine/plot the data before fitting the model
+2. Print and interpret the model "summary"
+3. "plot" the model to look for deviations from modeling assumptions
+
+Select one or more additional predictors to add to your model and repeat steps 1-3. Is this model significantly better than the model with /metro/ as the only predictor?
+
+
+```{r}
+#  1  - Plot the data
+plot(states.data$energy, states.data$metro)
+
+#  2  - Fit the model
+EnergyReg <- lm(energy ~ metro, data = states.data)
+
+# Print Summary of model
+summary(EnergyReg)
+
+#  3  - look for deviations from model assumptions
+par(mar = c(4, 4, 2, 2), mfrow = c(1, 2))
+plot(EnergyReg, which = c(1, 2))
+```
+#  Add an other predictor - College
+
+```{r}
+EnergyReg1 <- lm(energy ~ metro + college, data = states.data)
+summary(EnergyReg1)
+```
+
+Adding college made very little difference, let's try a number and see what we learn
+
+```{r}
+EnergyReg2 <- lm(energy ~ metro + density + toxic + green + house + senate, data = states.data)
+summary(EnergyReg2)
+```
+
+That is better, let's start removing some
+
+```{r}
+EnergyReg3 <- lm(energy ~ metro + density + toxic + green + senate, data = states.data)
+summary(EnergyReg3)
+EnergyReg4 <- lm(energy ~ metro + toxic + green, data = states.data)
+summary(EnergyReg4)
+```
+Looks like toxic and green are the best predictors.
+
+
+## Exercise: interactions and factors
+────────────────────────────────────────
+
+### Use the states data set.
+
+1. Add on to the regression equation that you created in exercise 1 by generating an interaction term and testing the interaction.
+
+2. Try adding region to the model. Are there significant differences across the four regions?
+
+```{r}
+EnergyReg5 <- lm(energy ~ metro + toxic + green*income, data = states.data)
+summary(EnergyReg5)
+
+#Show the results
+coef(summary(EnergyReg5))
+
+# make sure R knows region is categorical
+states.data$region <- factor(states.data$region)
+
+EnergyReg6 <- lm(energy ~ metro + toxic + green + region, data = states.data)
+summary(EnergyReg6)
+
+coef(summary(EnergyReg6))
+```
+
