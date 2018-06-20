@@ -1,0 +1,84 @@
+---
+title: "LogisticalRegression Homework"
+author: "Brian Hallberg"
+date: "6/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##  Get the data needed
+
+Load the states data.
+Grab the labels incase we need them later.
+
+```{r}
+library(effects)
+library(caTools)
+
+NH11 <- readRDS("dataSets/NatHealth2011.rds")
+labs <- attributes(NH11)$labels
+```
+## Exercise: logistic regression
+───────────────────────────────────
+
+### Use the NH11 data set that we loaded earlier.
+
+1. Use glm to conduct a logistic regression to predict ever worked (everwrk) using age (age_p) and marital status (r_maritl).
+2. Predict the probability of working for each level of marital status.
+
+Note that the data is not perfectly clean and ready to be modeled. You will need to clean up at least some of the variables before fitting the model.
+
+### Lets see what we have first:
+
+```{r}
+str(NH11$everwrk)
+levels(NH11$everwrk)
+str(NH11$age_p)
+str(NH11$r_maritl)
+levels(NH11$r_maritl)
+```
+
+###  Now clean up 
+
+1. Remove all the NA records for everwrk and put in a new table
+2. Reduce everwrk to either yes or no.
+3. Code yes/no factor into 1/0 and store it in table
+
+```{r}
+# Step 1 - remove NA records
+NH11work <- subset(NH11, !is.na(everwrk))
+# Step 2 - either Yes or No
+NH11work$everwrk <- factor(NH11work$everwrk, levels=c("2 No", "1 Yes"))
+# Step 3
+NH11work$everwrkb <- ifelse(NH11work$everwrk=="1 Yes", 1, 0)
+```
+### Now split up the data into train and test sets
+
+```{r}
+split <- sample.split(NH11work$everwrkb, SplitRatio = 0.65)
+Train = subset(NH11work, split == TRUE)
+Test = subset(NH11work, split == FALSE)
+```
+
+### Now do the Logistical Regression
+
+```{r}
+NH11workLog = glm(everwrkb ~ age_p + r_maritl, data = Train, family = binomial)
+summary(NH11workLog)
+```
+###  Try to make the coefficents make more sense
+
+```{r}
+NH11workLog.tab <- coef(summary(NH11workLog))
+NH11workLog.tab[,"Estimate"] <- exp(coef(NH11workLog))
+NH11workLog.tab
+```
+### Finally plot all the results
+
+```{r}
+plot(allEffects(NH11workLog))
+summary(allEffects(NH11workLog))
+```
+
