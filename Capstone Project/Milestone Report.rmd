@@ -2,7 +2,7 @@
 title: "Milestone Report"
 author: "Brian Hallberg"
 date: "June 14, 2018"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}

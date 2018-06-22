@@ -2,7 +2,7 @@
 title: "Data Wrangling"
 author: "Brian Hallberg"
 date: "6/4/2018"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}

@@ -2,7 +2,7 @@
 title: "Exploring Data and Statistics"
 author: "Brian Hallberg"
 date: "6/11/2018"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
