@@ -30,6 +30,6 @@ Based on some model testing, the independent variables I will use are as follows
     + Career Strike Outs Thrown
     + Career Games Pitched
 
-Because the independent variables are a mix of discrete/categorical variables and continuous variables, the Classification and Regression Trees (CART), specifically Random Forests, type model is a good choice.
+I'm going to start with logistic regression and use results from that to help identify the best independent variables. I'll use the confusion matrix to see how well the model works.  If this does not provide good results, I'll look at the random forest model to see if it works better.
 
-I will be testing the random forest model both using a train/test split in the original data, and also using a new test data set.
+I will be testing the model both using a train/test split in the original data.  There is also the ability to use a few more players that are not currently in the hall and have not retired to see if they would be inducted.  There are a few years of inductions not in the database so that could be useful.
