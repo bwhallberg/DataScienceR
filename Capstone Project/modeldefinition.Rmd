@@ -1,0 +1,132 @@
+---
+title: "ModelDefinition"
+author: "Brian Hallberg"
+date: "June 27, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caTools)
+library(ROCR)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(caret)
+library(e1071)
+library(dplyr)
+```
+## Load Data
+
+
+```{r loaddata}
+eligible = readRDS("eligible.rds")
+```
+##  Add any needed columns to the table
+
+The column *inducted* either has the value "Y" or "N".  To process the regression we need to create another column that has the value 1 if *inducted* is "Y" or 0 if it is "N".
+
+```{r}
+eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
+```
+
+##  Start with simply Logistic Regression
+
+
+###  Looking at all players and their All-Star game appearances only
+
+Using the full data set of eligible players.  Let's look at all-star appearances only in regression and see what we get.
+
+####  Make the trial and test sets of data
+
+```{r}
+split <- sample.split(eligible$Indicator, SplitRatio = 0.7)
+Train <- subset(eligible, split == TRUE)
+Test <- subset(eligible, split == FALSE)
+fit.allstar <- glm(Indicator ~ allstar, data = Train, family = "binomial")
+summary(fit.allstar)
+
+```
+Now we'll fit the test data with the model and compute accuracy
+
+```{r}
+predTest <- predict(fit.allstar, newdata = Test)
+table(Test$Indicator, predTest > 0.5)
+```
+
+The accuracy is .92.  However it does not do a good job of predicting the true hall of fame players from the test set.  Only correct on .14 of the cases.
+
+If we change the threshold to 0.01, the true hall of famers from all star appearances only gets to .23.  The accuracy is .93.
+
+#### Add all the other predictors and see what happens
+
+```{r}
+fit.all <- glm(Indicator ~ allstar + hit + hr + rbi + run + ba + w + gpitch + sopitch, data = Train, family = "binomial")
+summary(fit.all)
+```
+
+####  Lots of extras, let's remove some and see how it changes
+
+```{r}
+fit.all <- glm(Indicator ~ allstar + hit + hr + rbi + run + w + gpitch + sopitch, data = Train, family = "binomial")
+summary(fit.all)
+```
+
+####  Drop another
+
+
+
+```{r}
+fit.all <- glm(Indicator ~ allstar + hr + rbi + w, data = Train, family = "binomial")
+summary(fit.all)
+```
+
+#### Let's use some ploting to see what the threshold should be
+
+```{r}
+predTest <- predict(fit.all, newdata = Test)
+ROCRpred <- prediction(predTest, Test$Indicator)
+ROCRperf <- performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
+table(Test$Indicator, predTest > 0.5)
+```
+
+Not this does very good with those not inducted, but we miss most of those that were inducted
+
+## So let's split the data between pitchers and nonpitchers and see what we can learn.
+
+### Break the eligible into pitchers and nonpitchers
+
+```{r}
+pitchelig <- eligible %>% filter(!is.na(gpitch)) %>% filter(gpitch>163)
+nonpitchelig <- eligible %>% filter(gpitch<164 | is.na(gpitch))
+```
+
+#### fit again, make train and test sets for both
+
+```{r}
+split = sample.split(pitchelig$Indicator, SplitRatio = 0.7)
+pTrain = subset(pitchelig, split == TRUE)
+pTest = subset(pitchelig, split == FALSE)
+
+split = sample.split(nonpitchelig$Indicator, SplitRatio = 0.7)
+npTrain = subset(nonpitchelig, split == TRUE)
+npTest = subset(nonpitchelig, split == FALSE)
+
+pfit.all <- glm(Indicator ~ allstar + w, data = pTrain, family = "binomial")
+summary(pfit.all)
+
+npfit.all <- glm(Indicator ~ allstar + hr + rbi + run + ba, data = npTrain, family = "binomial")
+summary(npfit.all)
+
+```
+
+#### How is the prediction on the new sets
+
+```{r}
+ppredTest <- predict(pfit.all, newdata=pTest)
+table(pTest$Indicator, ppredTest > 0.5)
+nppredTest <- predict(npfit.all, newdata=npTest)
+table(npTest$Indicator, nppredTest > 0.5)
+```
+

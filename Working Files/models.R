@@ -40,3 +40,38 @@ table(TrainSet$Indicator, predTrain > 0.5)
 ROCRpred <- prediction(predTrain, TrainSet$Indicator)
 ROCRperf <- performance(ROCRpred, "tpr", "fpr")
 plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
+
+# Break the eligible into pitchers and nonpitchers
+
+pitchelig <- eligible %>% filter(!is.na(gpitch)) %>% filter(gpitch>163)
+nonpitchelig <- eligible %>% filter(gpitch<164 | is.na(gpitch))
+
+# fit again, make train and test sets for both
+
+theSplit = sample.split(pitchelig$Indicator, SplitRatio = 0.7)
+pTrainSet = subset(pitchelig, theSplit == TRUE)
+pTestSet = subset(pitchelig, theSplit == FALSE)
+
+theSplit = sample.split(nonpitchelig$Indicator, SplitRatio = 0.7)
+npTrainSet = subset(nonpitchelig, theSplit == TRUE)
+npTestSet = subset(nonpitchelig, theSplit == FALSE)
+
+pfit.all <- glm(Indicator ~ allstar + w, data = pTrainSet, family = "binomial")
+summary(pfit.all)
+
+npfit.all <- glm(Indicator ~ allstar + hr + rbi + run + ba, data = npTrainSet, family = "binomial")
+summary(npfit.all)
+
+ppredTrain <- predict(pfit.all, type = "response")
+table(pTrainSet$Indicator, ppredTrain > 0.5)
+
+install.packages("rpart")
+library(rpart)
+install.packages("rpart.plot")
+library(rpart.plot)
+
+install.packages("randomForest")
+library(randomForest)
+
+install.packages("caret")
+install.packages("e1071")
