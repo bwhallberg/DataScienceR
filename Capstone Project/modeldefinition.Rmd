@@ -13,7 +13,6 @@ library(rpart)
 library(rpart.plot)
 library(randomForest)
 library(caret)
-library(e1071)
 library(dplyr)
 ```
 ## Load Data
