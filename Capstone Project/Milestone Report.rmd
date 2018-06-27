@@ -2,7 +2,7 @@
 title: "Milestone Report"
 author: "Brian Hallberg"
 date: "June 14, 2018"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -245,10 +245,10 @@ p + geom_point(aes(x=gpitch))
 
 
 ## Approach
-The intent is to use ...  
+My intenet is to use logistic regression and use results from that to help identify the best independent variables. I'll use the confusion matrix to see how well the model works.  If this does not provide good results, I'll look at the random forest model to see if it works better.
 
-The predictive quality of the model will be evaluated through cross validation.  This model could be compared to a K-means cluster model using Gower distance for the mix of continuous and categorized data.
+I will be testing the model both using a train/test split in the original data.  
 
-The dependent variable will be inducted, and the independent variables will be some combination of ...
+The dependent variable will be inducted, and the independent variables will be some combination of All Star Game Appearances, Career Hits, Career Home Runs, Career Batting Average, Career Runs Batted In, Career Runs Scored, Career Wins, Career Games Pitched, and Career Strike Outs Thrown.
 
 The final report will outline the process of how this model is developed, any further data cleaning required, and evaluation.
