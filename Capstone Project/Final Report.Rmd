@@ -1,0 +1,45 @@
+---
+title: "Final Report"
+author: "Brian Hallberg"
+date: "6/23/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Initialize everything
+
+###  load any needed libraries
+
+```{r loadlib, include=FALSE}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(caTools)
+```
+### Open Data Files
+
+
+```{r loaddata}
+eligible = readRDS("eligible.rds")
+```
+##  Add any needed columns to the table
+
+The column *inducted* either has the value "Y" or "N".  To process the regression we need to create another column that has the value 1 if *inducted* is "Y" or 0 if it is "N".
+
+```{r}
+eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
+```
+
+##  Make the trial and test sets of data
+
+```{r}
+set.seed(21)
+theSplit = sample.split(eligible$Indicator, SplitRatio = 0.7)
+TrainSet = subset(eligible, theSplit == TRUE)
+TestSet = subset(eligible, theSplit == FALSE)
+```
+
