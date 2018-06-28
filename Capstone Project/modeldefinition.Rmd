@@ -21,6 +21,19 @@ library(dplyr)
 ```{r loaddata}
 eligible = readRDS("eligible.rds")
 ```
+##  Define functions
+
+```{r}
+myconfusion <- function(x, y) {
+  tmp <- table(x, y)
+  Accuracy <- (tmp[1,1]+tmp[2,2])/sum(tmp)
+  sensitivity <- tmp[2,2]/(tmp[2,2]+tmp[2,1])
+  specificity <- tmp[1,1]/(tmp[1,1]+tmp[1,2])
+  result <- list(Accuracy=Accuracy, sensitivity=sensitivity, specificity=specificity)
+  return(result)
+}
+```
+
 ##  Add any needed columns to the table
 
 The column *inducted* either has the value "Y" or "N".  To process the regression we need to create another column that has the value 1 if *inducted* is "Y" or 0 if it is "N".
@@ -51,6 +64,7 @@ Now we'll fit the test data with the model and compute accuracy
 ```{r}
 predTest <- predict(fit.allstar, newdata = Test)
 table(Test$Indicator, predTest > 0.5)
+myconfusion(Test$Indicator, predTest > 0.5)
 ```
 
 The accuracy is .92.  However it does not do a good job of predicting the true hall of fame players from the test set.  Only correct on .14 of the cases.
@@ -88,6 +102,7 @@ ROCRpred <- prediction(predTest, Test$Indicator)
 ROCRperf <- performance(ROCRpred, "tpr", "fpr")
 plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
 table(Test$Indicator, predTest > 0.5)
+myconfusion(Test$Indicator, predTest > 0.5)
 ```
 
 Not this does very good with those not inducted, but we miss most of those that were inducted
@@ -125,7 +140,36 @@ summary(npfit.all)
 ```{r}
 ppredTest <- predict(pfit.all, newdata=pTest)
 table(pTest$Indicator, ppredTest > 0.5)
+myconfusion(pTest$Indicator, ppredTest > 0.5)
 nppredTest <- predict(npfit.all, newdata=npTest)
 table(npTest$Indicator, nppredTest > 0.5)
+myconfusion(npTest$Indicator, nppredTest > 0.5)
 ```
+##  Look at CART instead
+
+
+```{r}
+hofTree <- rpart(Indicator ~ allstar + hr + rbi + w, data = Train, method="class", control=rpart.control(minbucket=25))
+prp(hofTree)
+PredCART <- predict(hofTree, newdata=Test, type="class")
+table(Test$Indicator, PredCART)
+myconfusion(Test$Indicator, PredCART)
+PredROC <- predict(hofTree, newdata=Test)
+pred <- prediction(PredROC[,2], Test$Indicator)
+perf <- performance(pred, "tpr", "fpr")
+plot(perf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
+```
+
+##  Look at Random Forest instead
+
+```{r}
+Train$Indicator <- as.factor(Train$Indicator)
+Test$Indicator <- as.factor(Test$Indicator)
+allForest <- randomForest(Indicator ~ allstar + hr + rbi + w, data = Train, nodesize=25, ntree=500, na.action = na.omit, importance=TRUE)
+predForest <- predict(allForest, newdata = Test)
+table(Test$Indicator, predForest)
+myconfusion(Test$Indicator, predForest)
+```
+
+
 
