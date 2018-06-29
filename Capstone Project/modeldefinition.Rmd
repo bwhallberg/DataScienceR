@@ -14,6 +14,7 @@ library(rpart.plot)
 library(randomForest)
 library(caret)
 library(dplyr)
+library(corrplot)
 ```
 ## Load Data
 
@@ -40,6 +41,10 @@ The column *inducted* either has the value "Y" or "N".  To process the regressio
 
 ```{r}
 eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
+eligible <- eligible %>%
+  select(-starts_with("birth"), -starts_with("death"), -height, -weight) %>%
+  select(-bats, -throws, -bbref_id, -retro_id)
+eligible[is.na(eligible)] <- 0
 ```
 
 ##  Start with simply Logistic Regression
@@ -55,7 +60,7 @@ Using the full data set of eligible players.  Let's look at all-star appearances
 split <- sample.split(eligible$Indicator, SplitRatio = 0.7)
 Train <- subset(eligible, split == TRUE)
 Test <- subset(eligible, split == FALSE)
-fit.allstar <- glm(Indicator ~ allstar, data = Train, family = "binomial")
+fit.allstar <- glm(Indicator ~ allstar, data = Train, na.action = na.pass, family = "binomial")
 summary(fit.allstar)
 
 ```
@@ -112,8 +117,17 @@ Not this does very good with those not inducted, but we miss most of those that 
 ### Break the eligible into pitchers and nonpitchers
 
 ```{r}
-pitchelig <- eligible %>% filter(!is.na(gpitch)) %>% filter(gpitch>163)
-nonpitchelig <- eligible %>% filter(gpitch<164 | is.na(gpitch))
+
+pitchelig <- eligible %>% 
+  filter(!is.na(gpitch)) %>% 
+  filter(gpitch>163) %>%
+  select(-ab, -ba,-bb, -cs, -double, -hbp, -hit, -hr, -ibb, -rbi) %>%
+  select(-run, -sb, -sh, -so, -triple, -game)
+nonpitchelig <- eligible %>% 
+  filter(gpitch<164 | is.na(gpitch)) %>%
+  select(-w, -l, -gpitch, -gs, -cg, -sho, -sv, -ipouts, -hallow, -er) %>%
+  select(-hrallow, -bballow, -sopitch, -wp, -batterhit, -bk, -bfp) %>%
+  select(-gf, -rallow)
 ```
 
 #### fit again, make train and test sets for both
@@ -149,26 +163,26 @@ myconfusion(npTest$Indicator, nppredTest > 0.5)
 
 
 ```{r}
-hofTree <- rpart(Indicator ~ allstar + hr + rbi + w, data = Train, method="class", control=rpart.control(minbucket=25))
-prp(hofTree)
-PredCART <- predict(hofTree, newdata=Test, type="class")
-table(Test$Indicator, PredCART)
-myconfusion(Test$Indicator, PredCART)
-PredROC <- predict(hofTree, newdata=Test)
-pred <- prediction(PredROC[,2], Test$Indicator)
-perf <- performance(pred, "tpr", "fpr")
-plot(perf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
+#hofTree <- rpart(Indicator ~ allstar + hr + rbi + w, data = Train, method="class", control=rpart.control(minbucket=25))
+#prp(hofTree)
+#PredCART <- predict(hofTree, newdata=Test, type="class")
+#table(Test$Indicator, PredCART)
+#myconfusion(Test$Indicator, PredCART)
+#PredROC <- predict(hofTree, newdata=Test)
+#pred <- prediction(PredROC[,2], Test$Indicator)
+#perf <- performance(pred, "tpr", "fpr")
+#plot(perf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
 ```
 
 ##  Look at Random Forest instead
 
 ```{r}
-Train$Indicator <- as.factor(Train$Indicator)
-Test$Indicator <- as.factor(Test$Indicator)
-allForest <- randomForest(Indicator ~ allstar + hr + rbi + w, data = Train, nodesize=25, ntree=500, na.action = na.omit, importance=TRUE)
-predForest <- predict(allForest, newdata = Test)
-table(Test$Indicator, predForest)
-myconfusion(Test$Indicator, predForest)
+#Train$Indicator <- as.factor(Train$Indicator)
+#Test$Indicator <- as.factor(Test$Indicator)
+#allForest <- randomForest(Indicator ~ allstar + hr + rbi + w, data = Train, nodesize=25, ntree=500, na.action = na.omit, importance=TRUE)
+#predForest <- predict(allForest, newdata = Test)
+#table(Test$Indicator, predForest)
+#myconfusion(Test$Indicator, predForest)
 ```
 
 
