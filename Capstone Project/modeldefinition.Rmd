@@ -69,6 +69,7 @@ Now we'll fit the test data with the model and compute accuracy
 ```{r}
 predTest <- predict(fit.allstar, newdata = Test)
 table(Test$Indicator, predTest > 0.5)
+table(Test$Indicator, predTest > 0.25)
 myconfusion(Test$Indicator, predTest > 0.5)
 ```
 
@@ -107,6 +108,7 @@ ROCRpred <- prediction(predTest, Test$Indicator)
 ROCRperf <- performance(ROCRpred, "tpr", "fpr")
 plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0, 1, 0.1), text.adj=c(-0.2, 1.7))
 table(Test$Indicator, predTest > 0.5)
+table(Test$Indicator, predTest > 0.25)
 myconfusion(Test$Indicator, predTest > 0.5)
 ```
 
@@ -154,9 +156,11 @@ summary(npfit.all)
 ```{r}
 ppredTest <- predict(pfit.all, newdata=pTest)
 table(pTest$Indicator, ppredTest > 0.5)
+table(pTest$Indicator, ppredTest > 0.25)
 myconfusion(pTest$Indicator, ppredTest > 0.5)
 nppredTest <- predict(npfit.all, newdata=npTest)
 table(npTest$Indicator, nppredTest > 0.5)
+table(npTest$Indicator, nppredTest > 0.25)
 myconfusion(npTest$Indicator, nppredTest > 0.5)
 ```
 ##  Look at CART instead
