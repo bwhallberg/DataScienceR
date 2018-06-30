@@ -44,7 +44,7 @@ eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
 eligible <- eligible %>%
   select(-starts_with("birth"), -starts_with("death"), -height, -weight) %>%
   select(-bats, -throws, -bbref_id, -retro_id)
-eligible[is.na(eligible)] <- 0
+#eligible[is.na(eligible)] <- 0
 ```
 
 ##  Start with simply Logistic Regression
@@ -129,6 +129,14 @@ nonpitchelig <- eligible %>%
   select(-hrallow, -bballow, -sopitch, -wp, -batterhit, -bk, -bfp) %>%
   select(-gf, -rallow)
 ```
+####  Look at the corelation
+
+```{r}
+theCor <- cor(pitchelig[,8:27])
+corrplot(theCor, title="Pitcher Statistics Correlations")
+theCor <- cor(nonpitchelig[,8:24])
+corrplot(theCor, title="NonPitcher Statistics Correlations")
+```
 
 #### fit again, make train and test sets for both
 
@@ -141,7 +149,7 @@ split = sample.split(nonpitchelig$Indicator, SplitRatio = 0.7)
 npTrain = subset(nonpitchelig, split == TRUE)
 npTest = subset(nonpitchelig, split == FALSE)
 
-pfit.all <- glm(Indicator ~ allstar + w, data = pTrain, family = "binomial")
+pfit.all <- glm(Indicator ~ allstar + w + gpitch + sopitch, data = pTrain, family = "binomial")
 summary(pfit.all)
 
 npfit.all <- glm(Indicator ~ allstar + hr + rbi + run + ba, data = npTrain, family = "binomial")
@@ -153,11 +161,11 @@ summary(npfit.all)
 
 ```{r}
 ppredTest <- predict(pfit.all, newdata=pTest)
-table(pTest$Indicator, ppredTest > 0.5)
-myconfusion(pTest$Indicator, ppredTest > 0.5)
+table(pTest$Indicator, ppredTest > 0.2)
+myconfusion(pTest$Indicator, ppredTest > 0.2)
 nppredTest <- predict(npfit.all, newdata=npTest)
-table(npTest$Indicator, nppredTest > 0.5)
-myconfusion(npTest$Indicator, nppredTest > 0.5)
+table(npTest$Indicator, nppredTest > 0.2)
+myconfusion(npTest$Indicator, nppredTest > 0.2)
 ```
 ##  Look at CART instead
 
