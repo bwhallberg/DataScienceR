@@ -2,16 +2,12 @@
 title: "Final Report"
 author: "Brian Hallberg"
 date: "6/23/2018"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-## Initialize everything
-
-###  load any needed libraries
-
 ```{r loadlib, include=FALSE}
 library(readr)
 library(tidyr)
@@ -19,27 +15,43 @@ library(dplyr)
 library(ggplot2)
 library(GGally)
 library(caTools)
-```
-### Open Data Files
 
-
-```{r loaddata}
 eligible = readRDS("eligible.rds")
 ```
-##  Add any needed columns to the table
+## Introduction
+
+Election to the Baseball Hall of Fame is the highest honor bestowed on any player, it indicates that they have made great contributions to baseball and are legedary players that have made baseball a fan favorite for over 100 years.
+
+With over 100 years of players and their playing statistics, the ability to predict if a player will become a member of the Hall of Fame would be helpful to active players and their agents as well as members of the baseball writers that elect the players and the veterans committe that elects those no longer eligible.  Players and agents can use this in salary negotions.  Baseball writers can insure that they continue to nominate and elect the elite players in the game.  The veterns committee can identify players that were missed in the past but have the statistics to have been elected.
+
+
+## Data
+
+
+This project makes use of a data set called the History of Baseball.  It contains data from professional baseball covering the period from 1871 to 2015.  This includes All-Star Game and Hall of Fame selections.  Additionally, there is yearly statistics on over 18,000 players.  These sets of data will provide the information needed and are described below.  There are additional data on teams and franchises that are avaialble, but not used in this project.  The data is available on the Kraggle web side and can be obtained at this link: 
+
+* https://www.kaggle.com/seanlahman/the-history-of-baseball
+
+### Master Table
+
+## Data Manipulation
+
+## Data Exploration
+
+## Building the Model
+
+## Results
+
+## Conclusions
+
+## recommendations
+
+
+####  Add any needed columns to the table
 
 The column *inducted* either has the value "Y" or "N".  To process the regression we need to create another column that has the value 1 if *inducted* is "Y" or 0 if it is "N".
 
 ```{r}
 eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
-```
-
-##  Make the trial and test sets of data
-
-```{r}
-set.seed(21)
-theSplit = sample.split(eligible$Indicator, SplitRatio = 0.7)
-TrainSet = subset(eligible, theSplit == TRUE)
-TestSet = subset(eligible, theSplit == FALSE)
 ```
 
