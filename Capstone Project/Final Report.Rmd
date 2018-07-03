@@ -211,6 +211,10 @@ rm(fullplay, batting, pitching, hof, all_star, sumallstar, sumhit, sumhof, sumpi
 
 ### Box plots of some of the data
 
+```{r}
+boxplot(allstar~inducted, data=eligible)
+```
+
 ### Scatter plots 
 
 ###  Look at the corelation
@@ -221,7 +225,22 @@ Some correlation plots might show us something.
 theCor <- cor(eligible[,7:42])
 corrplot(theCor, title="All Eligible Player Correlations")
 theCor <- cor(pitchelig[,7:26])
-corrplot(theCor, title="Pitcher Statistics Correlations")
+corrplot(theCor, 
+         title="Pitcher Statistics Correlations", 
+         type="upper", 
+#         order="hclust",
+#         addCoef.col = "black", # Add coefficient of correlation
+#         tl.col="black", 
+         tl.srt=45, #Text label color and rotation 
+         method="color")
+corrplot(theCor, 
+         title="Pitcher Statistics Correlations", 
+         type="upper", 
+         order="hclust",
+#         addCoef.col = "black", # Add coefficient of correlation
+#         tl.col="black", 
+         tl.srt=45, #Text label color and rotation 
+         method="color")
 theCor <- cor(nonpitchelig[,7:23])
 corrplot(theCor, title="NonPitcher Statistics Correlations")
 ```
@@ -341,10 +360,12 @@ For the non pitchers the accuracy is 94% and it predicts 44% of the actual hall 
 
 *I'm going to see about another set of data, for those not eligible in the data set but active or not yet elected to see if any of them have since been elected.  A little help on this one would be appreciated.*
 
-## Conclusions
+## Conclusions and Recommendations
 
 All Star appearances alone is not a good predictor of Hall of Fame induction.  It does seem that splitting the players into those that pitch and those that do not give better results.  All Star appearances do seem to be a factor for both groups.  In addition, for a pitcher the number of wins they have and the number of earned runs they allow are important factors.  For hitters their home runs, batting average, runs batted in and runs scored are factors.  This makes sense, as an indicator of their offense abilities.  This model may be usefull to the veterns committee to review those player not in the hall of fame, that the model indicates should be.  This number is not very large, but maybe after time some of the reasons they were not elected are not that critical in todays world.
 
 The model is still much better at predicting those that will not make the Hall of Fame, but in just pure numbers that have played the game it makes sense.  There are about 220 players in the hall of fame in this data set and approximately 18,800 players.  That is a very small percentage (~1.2%).
 
-Based on this project, it would be recommended that the model be evaluated to include some fielding data which does appear to be avaialble.  The defensive ability of players may have an impact on induction as well.  My quick look at the data did not seem to show many fields that would be helpful, but once the data is added maybe it would.  It may also be worth looking at this from the standpoint of who should be voted on as a possible Hall of Fame player.  That may be a better prediction since many things can influence the voters.
+Based on this project, it would be recommended that the model be evaluated to include some fielding data which does appear to be avaialble.  The defensive ability of players may have an impact on induction as well.  My quick look at the data did not seem to show many fields that would be helpful, but once the data is added maybe it would.  Another factor that may impact the prediction, is time. It may be that the players should be looked at by decade or some other unit of time.  Players within the time, may be predictable, but not between the timelines.  
+
+It may also be worth looking at this from the standpoint of who should be on the ballot as a possible Hall of Fame player.  This model would be based on statistics and should keep top quality players on the ballot.
