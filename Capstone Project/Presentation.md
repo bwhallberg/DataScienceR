@@ -1,37 +1,34 @@
-Presentation
+Model to Predict Induction into the Baseball Hall of Fame
 ========================================================
-author: 
-date: 
+author: Brian Hallberg
+date: July 2, 2018
 autosize: true
 
-First Slide
+Introduction
 ========================================================
 
-For more details on authoring R presentations please visit <https://support.rstudio.com/hc/en-us/articles/200486468>.
+Election to the Baseball Hall of Fame is the highest honor bestowed on any player.
 
-- Bullet 1
-- Bullet 2
-- Bullet 3
+- Made significant contribution to baseball
+- Legendary Player
+- Played at least 10 years in the major league
+- Retired for at least 5 years
+- Inducted within 10 years of retirement
 
-Slide With Code
+The Data
 ========================================================
+This project makes use of a data set called the History of Baseball
 
+- covering the period from 1871 to 2015
+- All-Star Game and Hall of Fame selections
+- yearly statistics on over 18,000 players
+- Following tables used:
+  - player
+  
 
-```r
-summary(cars)
-```
-
-```
-     speed           dist       
- Min.   : 4.0   Min.   :  2.00  
- 1st Qu.:12.0   1st Qu.: 26.00  
- Median :15.0   Median : 36.00  
- Mean   :15.4   Mean   : 42.98  
- 3rd Qu.:19.0   3rd Qu.: 56.00  
- Max.   :25.0   Max.   :120.00  
-```
+Data available at https://www.kaggle.com/seanlahman/the-history-of-baseball
 
 Slide With Plot
 ========================================================
 
-![plot of chunk unnamed-chunk-2](Presentation-figure/unnamed-chunk-2-1.png)
+![plot of chunk unnamed-chunk-1](Presentation-figure/unnamed-chunk-1-1.png)
