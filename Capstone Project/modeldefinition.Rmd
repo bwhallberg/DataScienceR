@@ -25,11 +25,15 @@ eligible = readRDS("eligible.rds")
 ##  Define functions
 
 ```{r}
-myconfusion <- function(x, y) {
+myconfusion <- function(x, y, print=TRUE) {
   tmp <- table(x, y)
   Accuracy <- (tmp[1,1]+tmp[2,2])/sum(tmp)
   sensitivity <- tmp[2,2]/(tmp[2,2]+tmp[2,1])
   specificity <- tmp[1,1]/(tmp[1,1]+tmp[1,2])
+  if(print) {
+    table(x, y)
+    cat("\n", "Accuracy=", Accuracy, "\n", "Sensitivity=", sensitivity, "\n", "Specificity=",specificity)
+  }
   result <- list(Accuracy=Accuracy, sensitivity=sensitivity, specificity=specificity)
   return(result)
 }
@@ -70,7 +74,7 @@ Now we'll fit the test data with the model and compute accuracy
 predTest <- predict(fit.allstar, newdata = Test)
 table(Test$Indicator, predTest > 0.5)
 table(Test$Indicator, predTest > 0.25)
-myconfusion(Test$Indicator, predTest > 0.5)
+tmp <- myconfusion(Test$Indicator, predTest > 0.5)
 ```
 
 The accuracy is .92.  However it does not do a good job of predicting the true hall of fame players from the test set.  Only correct on .14 of the cases.
