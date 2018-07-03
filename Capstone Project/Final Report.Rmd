@@ -81,6 +81,7 @@ hof <- read_csv("hall_of_fame.csv")
 batting <- read_csv("batting.csv")
 pitching <- read_csv("pitching.csv")
 ```
+\pagebreak
 
 ## Data Manipulation
 
@@ -172,18 +173,32 @@ eligible <- fullplay %>%
   filter(timein > 10) %>%
   filter(final_game <= "2011-01-01")
 ```
+### Build a table for those players not yet retired
+
+As another test of the model, this set of players will be retired within the last 10 years or still active.
+
+```{r}
+#  How long have they played
+fullplay$timein = as.numeric(floor(difftime(fullplay$final_game, fullplay$debut, units="days")/365))
+futhof <- fullplay %>%
+  filter(final_game >= "2006-01-01")
+```
+
+
 ### Additional steps needed for the model builds
 
 The column *inducted* either has the value "Y" or "N".  To process the regression we need to create another column that has the value 1 if *inducted* is "Y" or 0 if it is "N".
 
 ```{r Indicator}
 eligible$Indicator <- ifelse(eligible$inducted == "Y", 1, 0)
+futhof$Indicator <- ifelse(futhof$inducted == "Y", 1, 0)
 ```
 
 Replace missing values with 0 in the eligible table.
 
 ```{r}
 eligible[is.na(eligible)] <- 0
+futhof[is.na(futhof)] <- 0
 ```
 
 It seems that it might make sense that the models will work better if the players are split by those that are pitchers and those that are not.  Pitchers in general are not elected for their hitting abilities and fielder are not selected based on how they pitch.  There are a suprising number of players that have pitched in at least one game.  I made the threshold of games pitched, 163 based on Babe Ruth who certainly pitched more games than many, but was not elected for his pitching abilities.
@@ -206,16 +221,58 @@ nonpitchelig <- eligible %>%
 #  These were temporary values and combined into other tables, so they can go.  If you want to see them, comment the next line out
 rm(fullplay, batting, pitching, hof, all_star, sumallstar, sumhit, sumhof, sumpitch, player)
 ```
+\pagebreak
 
 ## Data Exploration
 
 ### Box plots of some of the data
 
-```{r}
-boxplot(allstar~inducted, data=eligible)
-```
+Looking at a box plot of the players that are and are not in the Hall of Fame.  It does appear that hall of fame players have appeared in more games than did non hall of fame players, but there are a number of exceptions to that as well as shown by the outliers in those not inducted.
 
-### Scatter plots 
+
+```{r boxplt}
+ggplot(data = eligible, aes(x=inducted, y=allstar)) +
+  labs(title="Number of All Star Appearances", subtitle="by Induction Status") +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+  geom_boxplot(outlier.size=2, outlier.color="blue", outlier.alpha=.5)
+```
+\pagebreak
+
+### Histogram of the All Star Appearances
+
+Here is a historgram of the number of appearances in all star games for those that are not in the hall of fame and the second graph for those that are in the hall.  Again it does appear if you play in say 10 or more all star games, you're more likely to be in the hall, but there are excepts to that.  And being in an all star game is not a requirement to be in the hall.
+
+```{r histallstar}
+ggplot(data=eligible, aes(x=allstar)) +
+  labs(title="Number of All Star Appearances", y="Number of Players", x="All Star Games") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  facet_grid(.~inducted) +
+  coord_cartesian(ylim = c(0, 100)) +
+  scale_x_continuous(breaks=seq(0,25,5)) +
+  geom_histogram(bins=26)
+```
+\pagebreak
+
+### Other Plots
+
+See if there are visual representations of data that help understand the data.  There are two sets of graphs here.  The first represents the pitchers and shows the fields thought to be most likely to indicate a pitcher in the hall of fame.  The send one is the indicators for non pitchers.
+
+```{r pitchplt}
+ggpairs(data=pitchelig, # data.frame with variables
+        columns=c(8,10,17,20,6), # columns to plot, default to all.
+        title="Pitcher Data", # title of the plot
+        mapping = aes(color = inducted)) # aesthetics, ggplot2 style
+```
+\pagebreak
+```{r npitchplt}
+ggpairs(data=nonpitchelig, # data.frame with variables
+        columns=c(8, 9, 11, 14, 15, 10, 23, 6), # columns to plot, default to all.
+        title="Non Pitcher Data", # title of the plot
+        mapping = aes(color = inducted)) # aesthetics, ggplot2 style
+```
+Looking at these plots it does appear that games, at bats and hits all are similar maps.  Maybe just one of them is enough.
+
+\pagebreak
 
 ###  Look at the corelation
 
@@ -223,28 +280,25 @@ Some correlation plots might show us something.
 
 ```{r}
 theCor <- cor(eligible[,7:42])
-corrplot(theCor, title="All Eligible Player Correlations")
+corrplot(theCor, 
+         method="color", 
+         title="All Eligible Player Correlations")
+```
+\pagebreak
+```{r}
 theCor <- cor(pitchelig[,7:26])
 corrplot(theCor, 
          title="Pitcher Statistics Correlations", 
-         type="upper", 
-#         order="hclust",
-#         addCoef.col = "black", # Add coefficient of correlation
-#         tl.col="black", 
-         tl.srt=45, #Text label color and rotation 
          method="color")
-corrplot(theCor, 
-         title="Pitcher Statistics Correlations", 
-         type="upper", 
-         order="hclust",
-#         addCoef.col = "black", # Add coefficient of correlation
-#         tl.col="black", 
-         tl.srt=45, #Text label color and rotation 
-         method="color")
-theCor <- cor(nonpitchelig[,7:23])
-corrplot(theCor, title="NonPitcher Statistics Correlations")
 ```
-
+\pagebreak
+```{r}
+theCor <- cor(nonpitchelig[,7:23])
+corrplot(theCor, 
+         method="color", 
+         title="NonPitcher Statistics Correlations")
+```
+\pagebreak
 
 ## Predictive Model
 
@@ -286,8 +340,7 @@ split <- sample.split(eligible$Indicator, SplitRatio = 0.7)
 Train <- subset(eligible, split == TRUE)
 Test <- subset(eligible, split == FALSE)
 fit.allstar <- glm(Indicator ~ allstar, data = Train, na.action = na.pass, family = "binomial")
-summary(fit.allstar)
-
+coefficients(summary(fit.allstar))
 ```
 Now we'll fit the test data with the model and compute accuracy
 
@@ -304,7 +357,7 @@ If we change the threshold to 0.01, the true hall of famers from all star appear
 
 ```{r}
 fit.all <- glm(Indicator ~ allstar + hr + rbi + w, data = Train, family = "binomial")
-summary(fit.all)
+coefficients(summary(fit.all))
 ```
 
 Now we'll fit the test data with the model and compute accuracy
@@ -315,11 +368,11 @@ table(Test$Indicator, predTest > 0.5)
 tmp <- myconfusion(Test$Indicator, predTest > 0.5)
 ```
 This did not really make any difference in the results.
-
+\pagebreak
 ### Look at the results if we split into pitchers and non-pitchers
 
 
-#### fit again, make train and test sets for both
+#### Fit again, make train and test sets for both
 
 ```{r}
 split = sample.split(pitchelig$Indicator, SplitRatio = 0.7)
@@ -341,7 +394,7 @@ nppredTest <- predict(npfit.all, newdata=npTest)
 #### Prediction on the Pitchers
 
 ```{r}
-summary(pfit.all)
+coefficients(summary(pfit.all))
 table(pTest$Indicator, ppredTest > 0.3)
 tmp <- myconfusion(pTest$Indicator, ppredTest > 0.3)
 ```
@@ -351,14 +404,56 @@ This shows an 97% accuracty rate and it does identify 75% of the actual Hall of 
 #### Prediction on the Non Pitchers
 
 ```{r}
-summary(npfit.all)
+coefficients(summary(npfit.all))
 table(npTest$Indicator, nppredTest > 0.3)
 tmp <- myconfusion(npTest$Indicator, nppredTest > 0.3)
 ```
 For the non pitchers the accuracy is 94% and it predicts 44% of the actual hall of fame players in the test set.
 
+\pagebreak
 
-*I'm going to see about another set of data, for those not eligible in the data set but active or not yet elected to see if any of them have since been elected.  A little help on this one would be appreciated.*
+### Potential Hall of Fame Players
+
+Another table has been created from the history of baseball dataset.  They are the players that are not currently eligible for election into the hall of fame becuase they have not been retired for 5 years yet.  They may be active players.  For this group, I have not required them to play 10 years either since some are still active.  
+
+#### Split them into pitchers and non pitchers.
+
+```{r}
+#  First get the pitchers
+pfuthof <- futhof %>% 
+  filter(!is.na(gpitch)) %>% 
+  filter(gpitch>163) %>%
+  select(-ab, -ba,-bb, -cs, -double, -hbp, -hit, -hr, -ibb, -rbi) %>%
+  select(-run, -sb, -sh, -so, -triple, -game)
+# now the non pitchers
+npfuthof <- futhof %>% 
+  filter(gpitch<164 | is.na(gpitch)) %>%
+  select(-w, -l, -gpitch, -gs, -cg, -sho, -sv, -ipouts, -hallow, -er) %>%
+  select(-hrallow, -bballow, -sopitch, -wp, -batterhit, -bk, -bfp) %>%
+  select(-gf, -rallow)
+```
+
+####  Predict results on the potential hall of fame players
+
+```{r}
+nppredhof <- predict(npfit.all, newdata=npfuthof)
+ppredhof <- predict(pfit.all, newdata=pfuthof)
+```
+
+#### Now display predicted Hall of Fame players
+
+```{r}
+npfuthof$hof <- nppredhof > 0.3
+pfuthof$hof <- ppredhof > 0.3
+# list the non pitchers
+npfuthof %>% filter(hof) %>% select(name_first, name_last)
+# list the pitchers
+pfuthof %>% filter(hof) %>% select(name_first, name_last)
+```
+
+The model worked really well on the pitchers.  For the non pitchers it seem to have identified about 33 players that looking at their statistics are not very good.  Most played for just a few years some only part of a season.
+
+\pagebreak
 
 ## Conclusions and Recommendations
 
