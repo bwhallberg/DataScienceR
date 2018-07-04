@@ -427,6 +427,7 @@ pfuthof <- futhof %>%
   select(-run, -sb, -sh, -so, -triple, -game)
 # now the non pitchers
 npfuthof <- futhof %>% 
+  filter(timein > 4) %>%
   filter(gpitch<164 | is.na(gpitch)) %>%
   select(-w, -l, -gpitch, -gs, -cg, -sho, -sv, -ipouts, -hallow, -er) %>%
   select(-hrallow, -bballow, -sopitch, -wp, -batterhit, -bk, -bfp) %>%
